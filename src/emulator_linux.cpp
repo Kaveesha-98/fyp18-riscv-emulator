@@ -27,7 +27,7 @@ int main() {
 
     // sets up interrupts to move to exception handler
     // in next step()
-    emu.set_interrupts();
+    // emu.set_interrupts();
   }
   disable_raw_mode();
   return 0;
