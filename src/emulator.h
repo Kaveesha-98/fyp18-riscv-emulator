@@ -146,7 +146,7 @@ private:
   uint64_t ret_data = 0;
 
   vector<uint64_t> memory = vector<uint64_t>(1 << MEM_SIZE); // main memory
-  vector<uint64_t> reg_file = vector<uint64_t>(32);          // register file
+  // vector<uint64_t> reg_file = vector<uint64_t>(32);          // register file
 
   uint64_t PC;
   uint64_t PC_phy;
@@ -218,7 +218,7 @@ private:
       tw = 0;
       tsr = 0;
       uxl = 2;
-      sxl = 0;
+      sxl = 2;
       sd = 0;
     }
     uint64_t read_reg()
@@ -244,7 +244,7 @@ private:
       tvm = ((val >> 20) & 0b1);
       tw = ((val >> 21) & 0b1);
       tsr = ((val >> 22) & 0b1); /*uxl= ((val>>32)& 0b11); read only*/
-      sxl = ((val >> 34) & 0b11);
+      //sxl = ((val >> 34) & 0b11);
       sd = ((val >> 63) & 0b1);
     }
   } mstatus; //
@@ -637,6 +637,7 @@ private:
 
   uint64_t getINST(const uint64_t &PC, const vector<uint64_t> *memory)
   {
+    // cout << "This is here" << endl;
     if (PC % 2 == 0)
       return ((MASK32) & (memory->at(PC / 2)));
     else
@@ -1015,6 +1016,42 @@ private:
   }
 
 public:
+  uint64_t get_mstatus() { return mstatus.read_reg(); }
+
+  vector<uint64_t> reg_file = vector<uint64_t>(32);          // register file
+
+  void show_state() {
+    printf("pc: %016lx mstatus: %016lx mie: %016lx mcause: %016lx mepc: %016lx rx_ready: %d\n\
+    x00: %016lx x01: %016lx x02: %016lx x03: %016lx x04: %016lx x05: %016lx x06: %016lx x07: %016lx\n\
+    x08: %016lx x09: %016lx x10: %016lx x11: %016lx x12: %016lx x13: %016lx x14: %016lx x15: %016lx\n\
+    x16: %016lx x17: %016lx x18: %016lx x19: %016lx x20: %016lx x21: %016lx x22: %016lx x23: %016lx\n\
+    x24: %016lx x25: %016lx x26: %016lx x27: %016lx x28: %016lx x29: %016lx x30: %016lx x31: %016lx\n",
+    PC, mstatus.read_reg(), mie.read_reg(), mcause.read_reg(), mepc, 1,
+    reg_file[0], reg_file[1], reg_file[2], reg_file[3], reg_file[4], reg_file[5], reg_file[6], reg_file[7], 
+    reg_file[8], reg_file[9], reg_file[10], reg_file[11], reg_file[12], reg_file[13], reg_file[14], reg_file[15],
+    reg_file[16], reg_file[17], reg_file[18], reg_file[19], reg_file[20], reg_file[21], reg_file[22], reg_file[23],
+    reg_file[24], reg_file[25], reg_file[26], reg_file[27], reg_file[28], reg_file[29], reg_file[30], reg_file[31]);
+  }
+
+  __uint64_t get_pc() { return PC; }
+
+  __uint64_t fetch_long(__uint64_t offset) { return memory.at(offset / 8); }
+
+  int is_peripheral_read() {
+    __uint32_t instruction = fetch_instruction(PC);
+    __uint64_t load_addr = reg_file[(instruction >> 15) & 0x1f] + (((__uint64_t)((__int32_t) instruction)) >> 20);
+    if ((instruction & 0x7f) != 0b0000011) { return 0; } 
+    if ((load_addr >= DRAM_BASE) & (load_addr <= (DRAM_BASE + 0x9000000))) { return 0; } else { return 1; }
+  }
+
+  __uint32_t get_instruction() {
+    return fetch_instruction(PC);
+  }
+
+  void set_register_with_value(__uint8_t rd,__uint64_t value) {
+    reg_file[rd] = value;
+  }
+
   /**
    * Initializes the emulator, i.e.
    * 1. Setting the pc to the first instruction to be executed
