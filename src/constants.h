@@ -1,4 +1,4 @@
-#define MEM_SIZE 25
+#define MEM_SIZE 28
 
 #define MASK32 0xFFFFFFFFllu
 #define MASK64 0xFFFFFFFFFFFFFFFFllu
