@@ -1145,6 +1145,7 @@ public:
   {
   }
 
+  #ifndef LOCKSTEP
   /**
    * Sets up interrupts to execute instructions next
    * i.e.: sets up *TIP, *SIP, *EIP
@@ -1218,6 +1219,22 @@ public:
       PC = excep_function(PC, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, cp);
     }
   }
+  #else
+  // this sets up timer interrupt
+  // returns a positive integer [error code] if its not possible to set up interrupt
+  int set_interrupts() {
+    // emulator-simulator state semantic mis matches
+    // look at the pc definitions when comparing state
+    step();
+
+    // mip.MTIP = 1; //(mtime >= mtimecmp);
+    if (!mie.MTIE || !mstatus.mie) { return 1; }
+
+    PC = interrupt_function(PC, CAUSE_MACHINE_TIMER_INT, cp);
+    return 0;
+  }
+
+  #endif
 
   /**
    * Steps through one architectural change of pc
