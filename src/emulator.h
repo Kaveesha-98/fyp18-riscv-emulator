@@ -1467,7 +1467,9 @@ public:
             }
             else if (load_addr == FIFO_ADDR_TX)
             {
+              #ifndef LOCKSTEP
               wb_data = getchar();
+              #endif
               reg_file[rd] = wb_data;
             }
           }
