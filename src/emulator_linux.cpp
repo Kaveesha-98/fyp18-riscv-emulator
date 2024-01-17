@@ -20,8 +20,18 @@ int main() {
   // initaite registers and memory
   emu.init("Image");
 
+  //--------------Debugging---------------------
+  int i = 0;
+  //--------------Debugging---------------------
+
   enable_raw_mode();
   while (1) {
+    //--------------Debugging---------------------
+    std::cout << "Instruction number: " << i << "\n"
+             << std::string(50, '-') << endl;
+    i++;
+    //--------------Debugging---------------------
+
     // steps through one architectural change of pc
     emu.step();
 
