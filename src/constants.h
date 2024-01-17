@@ -38,6 +38,8 @@
 #define MTIMECMP_ADDR (CLINT_BASE+0x4000)
 
 std::string reg_file_names[32] = {"zero","ra","sp","gp","tp","t0","t1","t2","s0","s1","a0","a1","a2","a3","a4","a5","a6","a7","s2","s3","s4","s5","s6","s7","s8","s9","s10","s11","t3","t4","t5","t6"};
+//* Line 40: Register names for F registers
+std::string freg_file_names[32] = {"ft0","ft1","ft2","ft3","ft4","ft5","ft6","ft7","fs0","fs1","fa0","fa1","fa2","fa3","fa4","fa5","fa6","fa7","fs2","fs3","fs4","fs5","fs6","fs7","fs8","fs9","fs10","fs11","ft8","ft9","ft10","ft11"};
 
 // type defs
 enum opcode_t {
@@ -55,6 +57,16 @@ enum opcode_t {
                 amo    = 0b0101111,
                 fence  = 0b0001111,
                 systm  = 0b1110011,
+
+                //*Line 43 Define new instruction opcodes
+                fload  = 0b0000111,																						//
+				fstore = 0b0100111,																						//
+				fmadd  = 0b1000011,																						//
+				fmsub  = 0b1000111,																						// for all S,D and Q
+				fnmsub = 0b1001011,																						//
+				fnmadd = 0b1001111,																						//
+				fcomp  = 0b1010011,				//add,sub,mul,div,sqrt,sgnj,sgnjn,sgnjx,min,max,cvt,mv,eq,lt,le,class	//
+
             };
 
 enum plevel_t {
@@ -88,4 +100,8 @@ enum plevel_t {
 #define MARCHID			0xF12
 #define MIMPID			0xF13
 #define MHARTID			0xF14
-            
+
+//* Line 6: Add definitons for new Fcsr addresses
+#define FFLAGS			0x001		//floating point accrued exceptions
+#define FRM				0x002		//floating point dynamic rounding mode
+#define FCSR			0x003		//floating point control and status register(frm + fflags)
