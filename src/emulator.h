@@ -2653,7 +2653,10 @@ public:
 
         roundingmode_change(rm,temp_result);
 
+        feclearexcept(FE_ALL_EXCEPT);
         f_wb_data = (freg_file[rs1] * freg_file[rs2]) + freg_file[rs3];
+        setfflags();
+
         freg_file[rd] = f_wb_data;
 
         roundingmode_revert();
@@ -2665,7 +2668,10 @@ public:
 
         roundingmode_change(rm,temp_result);  
 
+        feclearexcept(FE_ALL_EXCEPT);
         f_wb_data = (freg_file[rs1] * freg_file[rs2]) - freg_file[rs3];
+        setfflags();
+
         freg_file[rd] = f_wb_data;
 
         roundingmode_revert();
@@ -2677,7 +2683,10 @@ public:
 
         roundingmode_change(rm,temp_result);   
 
+        feclearexcept(FE_ALL_EXCEPT);
         f_wb_data = - (freg_file[rs1] * freg_file[rs2]) + freg_file[rs3];
+        setfflags();
+
         freg_file[rd] = f_wb_data;
 
         roundingmode_revert();
@@ -2689,7 +2698,10 @@ public:
 
         roundingmode_change(rm,temp_result);  
 
+        feclearexcept(FE_ALL_EXCEPT);
         f_wb_data = - (freg_file[rs1] * freg_file[rs2]) - freg_file[rs3];
+        setfflags();
+
         freg_file[rd] = f_wb_data;
 
         roundingmode_revert();
@@ -2822,6 +2834,9 @@ public:
           }
           freg_file[rd] = f_wb_data;
         case 0b0010100: //FMIN.S FMAX.S 
+
+          feclearexcept(FE_ALL_EXCEPT); //! need to verify that the only NV flag will assert for comparison operators
+
 		      if (func3 == 0b000) { //FMIN.S
 		        if (freg_file[rs1] > freg_file[rs2]){
 			        f_wb_data = freg_file[rs2];
@@ -2833,17 +2848,17 @@ public:
 			        f_wb_data = freg_file[rs1];
 			      } else{
 			        f_wb_data = freg_file[rs2];
-			    } 
-          } else {
-            break;
-          }
+			      } 
+          } 
+          setfflags();
           freg_file[rd] = f_wb_data;
         case 0b1100000: //FCVT.W.S FCVTWU.S FCVT.L.S FCVT.LU.S
           roundingmode_change(rm, freg_file[rs1]);
+
+          feclearexcept(FE_ALL_EXCEPT); //! need to verify that the only NX flag will assert for casting operators
+
 		      switch (rs2) {
 		        case 0b00000: //FCVT.W.S
-              //int32_t converted_value = static_cast<int32_t>(freg_file[rs1]);
-			        //wb_data= static_cast<uint64_t>(converted_value);
               wb_data= static_cast<uint64_t>(static_cast<int32_t>(freg_file[rs1]));
               break;
             case 0b00001: //FCVT.WU.S
@@ -2857,22 +2872,35 @@ public:
               break;
             default:		
               break; 
+
+            setfflags();
+
             reg_file[rd] = wb_data;
+
             roundingmode_revert();
 		      }
         case 0b1010000: //FEQ.S FLT.S FLE.S  here rd is in integer register file
+
+          feclearexcept(FE_ALL_EXCEPT); //! need to verify that the only NV flag will assert for comparison operators
+
           if (isnan(freg_file[rs1]) || isnan(freg_file[rs1])) {
             wb_data = 0;
             if (func3 == 0b000 || func3 == 0b001) {
-            //TODO Set invalid operation flag high
+
+              //Set invalid operation flag high
+              temp = fcsr.read_fflags();
+	            fcsr.write_fflags(0b10000 | temp);
+
             } else if (func3 == 0b010) {
               if (number_class(freg_file[rs1]) == 8
               || number_class(freg_file[rs2]) == 8) {
-              //TODO Set invalid operation flag high
+
+                //Set invalid operation flag high
+                temp = fcsr.read_fflags();
+	              fcsr.write_fflags(0b10000 | temp);
+
               }
-            } else {
-              break;
-            }
+            } 
           } else {
             if (func3 == 0b000) {   //Less than or equal
               wb_data =  (freg_file[rs1] <= freg_file[rs2]) ? 1 : 0;
@@ -2890,6 +2918,9 @@ public:
           reg_file[rd] = wb_data;
         case 0b1101000: //FCVT.S.W FCVT.S.WU  FCVT.S.L FCVT.S.LU 
           roundingmode_change(rm, reg_file[rs1]);
+
+          feclearexcept(FE_ALL_EXCEPT); //! need to verify that the only NX flag will assert for casting operators
+
 		      switch (rs2){
 		        case 0b00000: {//FCVT.S.W
 		          auto temp_value = static_cast<int32_t>(reg_file[rs1]);
@@ -2913,7 +2944,11 @@ public:
             }
             default:	
               break;	
+
+            setfflags();
+            
             freg_file[rd] = f_wb_data;
+
             roundingmode_revert();
 		      }
         case 0b1111000: {//FMV.W.X 
@@ -2931,15 +2966,13 @@ public:
             if (shift_num != -1) {
               wb_data = (0b1 << shift_num);
             } else {    //Added this for invalid checks
-            //TODO will need to puyt expceptions here.
+              //TODO remove this after fclass test pass.
               wb_data = 0b1111111111;
             }
             
           } else if (rm == 0b000) { //FMV.X.W
               int32_t temp = *reinterpret_cast<int32_t*>(&freg_file[rs1]);
               wb_data = (static_cast<uint64_t>(signbit(temp) ? 1 : 0) << 32) | temp;
-          } else {
-            break;
           }
           reg_file[rd] = wb_data;
           break;
