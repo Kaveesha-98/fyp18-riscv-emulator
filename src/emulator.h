@@ -765,14 +765,20 @@ private:
       }
 
     } else {  //Sign bit is zero
-    //First check for NaN
+      //First check for NaN
+      std::bitset<32> bits(num_check);
       if (std::isnan(num_check)) {
-        if ((*reinterpret_cast<uint32_t*>(&num_check) & 0x00400000) != 0) {
+        //TODO Need to correctly add ranges to the following
+        if (bits[31] == 0 && bits[22] == 1 && bits[21] == 1 && bits[0] == 1) {
             //Signalling NaN
+            //! To work in range 7F800001 and 7FBFFFFF or  FF800001 and FFBFFFFF
             return 8;
-        } else {
+        } else if (bits[31] == 0 && bits[23] == 1 && bits[0] == 1) {
             //Quiet NaN
+            //! To work in range  7FC00000 and 7FFFFFFF or FFC00000 and FFFFFFFF
             return 9;
+        } else {
+            return -1;
         }
       } else if (isPositiveInf) {
         return 7;
