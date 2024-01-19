@@ -35,10 +35,6 @@ int main() {
     // steps through one architectural change of pc
     emu.step();
 
-    //--------------Debugging---------------------
-    emu.show_state();
-    //--------------Debugging---------------------
-
     // sets up interrupts to move to exception handler
     // in next step()
     emu.set_interrupts();
