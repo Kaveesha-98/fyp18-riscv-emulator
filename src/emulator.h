@@ -2733,7 +2733,10 @@ public:
 
           roundingmode_change(rm,temp_result);
 
+          feclearexcept(FE_ALL_EXCEPT);
 		      f_wb_data = freg_file[rs1] * freg_file[rs2];
+          setfflags();
+
           freg_file[rd] = f_wb_data;
 
           roundingmode_revert();
@@ -2745,7 +2748,10 @@ public:
 
           roundingmode_change(rm,temp_result); 
 
+          feclearexcept(FE_ALL_EXCEPT);
 		      f_wb_data = freg_file[rs1] / freg_file[rs2];
+          setfflags();
+
           freg_file[rd] = f_wb_data;
 
           roundingmode_revert();
@@ -2757,7 +2763,10 @@ public:
 
           roundingmode_change(rm,temp_result); 
 
+          feclearexcept(FE_ALL_EXCEPT);
 		      f_wb_data = sqrt(freg_file[rs1]);
+          setfflags();
+
           freg_file[rd] = f_wb_data;
 
           roundingmode_revert();
