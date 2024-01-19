@@ -24,6 +24,8 @@
 
 #include "constants.h"
 
+#pragma STDC FENV_ACCESS ON
+
 using namespace std;
 
 // disables echo for terminal
@@ -995,6 +997,32 @@ private:
   void roundingmode_revert(){
     //Default rounding mode
     std::fesetround(FE_TONEAREST);
+  }
+
+  //* To access exceptions
+  void setfflags(){
+	  //feclearexcept(FE_ALL_EXCEPT);
+	  int temp;
+	  if (fetestexcept(FE_INVALID)){
+		temp = fcsr.read_fflags();
+	    fcsr.write_fflags(0b10000 | temp);
+	  }
+	  if (fetestexcept(FE_DIVBYZERO)){
+		temp = fcsr.read_fflags();
+		fcsr.write_fflags(0b01000 | temp);  
+	  }
+	  if (fetestexcept(FE_OVERFLOW)){
+		temp = fcsr.read_fflags();
+		fcsr.write_fflags(0b00100 | temp);  
+	  }
+	  if (fetestexcept(FE_UNDERFLOW)){
+		temp = fcsr.read_fflags();
+		fcsr.write_fflags(0b00010 | temp);   
+	  }
+	  if (fetestexcept(FE_INEXACT)){
+		temp = fcsr.read_fflags();
+		fcsr.write_fflags(0b00001 | temp);   
+	  }
   }
 
   bool load_word(const uint64_t &load_addr, const uint64_t &load_data, uint64_t &wb_data)
@@ -2673,8 +2701,12 @@ public:
         case 0b0000000: { //FADD.S
           float temp_result = freg_file[rs1] + freg_file[rs2];
  
-          roundingmode_change(rm,temp_result); 
+          roundingmode_change(rm,temp_result);
+
+          feclearexcept(FE_ALL_EXCEPT);
  		      f_wb_data = freg_file[rs1] + freg_file[rs2];
+          setfflags();
+
           freg_file[rd] = f_wb_data;
  
           roundingmode_revert();
@@ -2686,7 +2718,10 @@ public:
 
           roundingmode_change(rm,temp_result); 
 
+          feclearexcept(FE_ALL_EXCEPT);
 		      f_wb_data = freg_file[rs1] - freg_file[rs2];
+          setfflags();
+
           freg_file[rd] = f_wb_data;
 
           roundingmode_revert();
