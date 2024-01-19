@@ -2953,7 +2953,7 @@ public:
 		      }
         case 0b1111000: {//FMV.W.X 
           if (rm == 0b000) {
-            uint32_t temp_value = static_cast<uint32_t>(reg_file[rs1] >> 32);
+            uint32_t temp_value = static_cast<uint32_t>(reg_file[rs1]);
             f_wb_data = reinterpret_cast<float&>(temp_value);
             freg_file[rd] = f_wb_data;
           }
