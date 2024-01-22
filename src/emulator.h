@@ -744,48 +744,64 @@ private:
 
   //*Line 655
   int number_class(float num_check){
+    //Getting bit representations for mantissa and exponent
+    int const num_check_size = sizeof(num_check)*8;
+    bitset<num_check_size> num_check_b = bitset<num_check_size>(*reinterpret_cast<uint64_t*>(&num_check));
+    bitset<num_check_size> mantissa_b_mask = 0b11111111111111111111111;
+    bitset<num_check_size> mantissa_b = num_check_b & mantissa_b_mask;
+    bitset<num_check_size> exponent_b_mask = 0b11111111;
+    bitset<num_check_size> exponent_b = (num_check_b >> 23) & exponent_b_mask;
 
+    // TODO rewrite these conditions with bitset operations - cleanup
     bool isPositiveInf = std::isinf(num_check) && !std::signbit(num_check);
     bool isNegativeInf = std::isinf(num_check) && std::signbit(num_check);
     bool isPositiveZero = std::fpclassify(num_check) == FP_ZERO && !std::signbit(num_check);
     bool isNegativeZero = std::fpclassify(num_check) == FP_ZERO && std::signbit(num_check);
+    //? Subnormal check didn't work as expected
     bool isPositiveSubnormal = std::fpclassify(num_check) == FP_SUBNORMAL && std::signbit(num_check);
     bool isNegativeSubnormal = std::fpclassify(num_check) == FP_SUBNORMAL && std::signbit(num_check);
-
     if (std::signbit(num_check)) { //Checking for negative numbers
-      if (isNegativeInf) {  //Sign bit is 1
+      if (std::isnan(num_check)) {
+        if (mantissa_b[22] == 0) {
+            //Signalling NaN
+            //In range FF800001 and FFBFFFFF
+            return 8;
+        } else {
+          //Quiet NaN
+          //In range  FFC00000 and FFFFFFFF
+            return 9;
+        }
+      } else if (isNegativeInf) {  //Sign bit is 1
         return 0;
-      } else if (isNegativeSubnormal) {
-        return 2;
       } else if (isNegativeZero) {
         return 3;
+      } else if (exponent_b.none()) {
+        // isNegativeSubnormal, in this order
+        return 2;
       } else {
         //A negative normal number
         return 1;
       }
-
     } else {  //Sign bit is zero
       //First check for NaN
-      std::bitset<32> bits(num_check);
+      //std::bitset<32> bits(num_check);
       if (std::isnan(num_check)) {
-        //TODO Need to correctly add ranges to the following
-        if (bits[31] == 0 && bits[22] == 1 && bits[21] == 1 && bits[0] == 1) {
+        if (mantissa_b[22] == 0) {
             //Signalling NaN
-            //! To work in range 7F800001 and 7FBFFFFF or  FF800001 and FFBFFFFF
+            //In range 7F800001 and 7FBFFFFF 
             return 8;
-        } else if (bits[31] == 0 && bits[23] == 1 && bits[0] == 1) {
-            //Quiet NaN
-            //! To work in range  7FC00000 and 7FFFFFFF or FFC00000 and FFFFFFFF
-            return 9;
         } else {
-            return -1;
+          //Quiet NaN
+          //In range  7FC00000 and 7FFFFFFF 
+            return 9;
         }
       } else if (isPositiveInf) {
         return 7;
-      } else if (isPositiveSubnormal) {
-        return 5;
       } else if (isPositiveZero) {
         return 4;
+      } else if (exponent_b.none()) {
+        // isPositiveSubnormal, in this order
+        return 5;
       } else {
         //A positive normal number
         return 6;
