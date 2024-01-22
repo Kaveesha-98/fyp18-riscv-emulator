@@ -1047,6 +1047,61 @@ private:
 	  }
   }
 
+  //* To handle min-max instructions of floating point S
+  float min_max_f(float operand_1, float operand_2, int type){
+    //type = 0 -> min, type = 1 -> max
+    bitset<32> operand_1_b = bitset<32>(*reinterpret_cast<uint64_t*>(&operand_1));
+    bitset<32> operand_2_b = bitset<32>(*reinterpret_cast<uint64_t*>(&operand_2));
+    bool isoperand1_sNaN = isnan(operand_1) && !operand_1_b[22];
+    bool isoperand2_sNaN = isnan(operand_2) && !operand_2_b[22];
+    int temp;               //For flags
+    unsigned int result;    //For final result
+
+    if (isnan(operand_1) && isnan(operand_2)) {
+        //Both NaN, output is canonical NaN
+        if (isoperand1_sNaN || isoperand2_sNaN) {
+            //! Uncomment in emulator.h
+          temp = fcsr.read_fflags();
+	        fcsr.write_fflags(0b10000 | temp);
+        }
+        result = 0x7FC00000;
+    } else if (isnan(operand_1) || isnan(operand_2)) {
+        //If only 1 is NaN
+        if (isoperand1_sNaN || isoperand2_sNaN) {
+            //! Uncomment in emulator.h
+          temp = fcsr.read_fflags();
+	        fcsr.write_fflags(0b10000 | temp);
+        }
+        return (isnan(operand_1)) ? operand_2: operand_1;
+        //return the non-NaN value
+
+    } else if (fpclassify(operand_1) == FP_ZERO && fpclassify(operand_2) == FP_ZERO) {
+        //If both inputs are zero.
+        if (signbit(operand_1) && signbit(operand_2)) {
+            //If both of the operands are negative
+            result = 0x80000000;
+        } else if (signbit(operand_1) || signbit(operand_2)) {
+            //If only one is negative
+            result = (type) ? 0x00000000 : 0x80000000;
+            //Return +0.0 for max else -0.0
+        } else {
+            //Both operands positive
+            result = 0x00000000;
+            //Return +0.0
+        }
+    } else {
+        //Operands are not 0's or NaN's
+        if (type) {
+            return (operand_1 > operand_2) ? operand_1 : operand_2;
+        } else {
+            return (operand_1 > operand_2) ? operand_2 : operand_1;
+        }
+        //Handle as normal min, max situation
+    }
+    float* resultPtr = reinterpret_cast<float*>(&result);
+    return *resultPtr;
+}
+
   bool load_word(const uint64_t &load_addr, const uint64_t &load_data, uint64_t &wb_data)
   {
     switch (load_addr % 8)
@@ -2861,22 +2916,24 @@ public:
           break;
         case 0b0010100: //FMIN.S FMAX.S 
 
-          feclearexcept(FE_ALL_EXCEPT); //! need to verify that the only NV flag will assert for comparison operators
+          //feclearexcept(FE_ALL_EXCEPT); //! need to verify that the only NV flag will assert for comparison operators
 
 		      if (func3 == 0b000) { //FMIN.S
-		        if (freg_file[rs1] > freg_file[rs2]){
-			        f_wb_data = freg_file[rs2];
-			      } else{
-			        f_wb_data = freg_file[rs1];
-			      }
+		        //if (freg_file[rs1] > freg_file[rs2]){
+            f_wb_data = min_max_f(freg_file[rs1], freg_file[rs2], 0);
+			      //   f_wb_data = freg_file[rs2];
+			      // } else{
+			      //   f_wb_data = freg_file[rs1];
+			      // }
 		      } else if (func3 == 0b001) {//FMAX.S
-		        if (freg_file[rs1] > freg_file[rs2]) {
-			        f_wb_data = freg_file[rs1];
-			      } else{
-			        f_wb_data = freg_file[rs2];
-			      } 
+            f_wb_data = min_max_f(freg_file[rs1], freg_file[rs2], 1);
+		        // if (freg_file[rs1] > freg_file[rs2]) {
+			      //   f_wb_data = freg_file[rs1];
+			      // } else{
+			      //   f_wb_data = freg_file[rs2];
+			      // } 
           } 
-          setfflags();
+          //setfflags();
           freg_file[rd] = f_wb_data;
           break;
         case 0b1100000: //FCVT.W.S FCVTWU.S FCVT.L.S FCVT.LU.S
