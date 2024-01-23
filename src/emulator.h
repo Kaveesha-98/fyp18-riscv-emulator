@@ -2915,27 +2915,15 @@ public:
           freg_file[rd] = f_wb_data;
           break;
         case 0b0010100: //FMIN.S FMAX.S 
-
-          //feclearexcept(FE_ALL_EXCEPT); //! need to verify that the only NV flag will assert for comparison operators
-
+          //Exception flags and results are handled by the min_max_f function
 		      if (func3 == 0b000) { //FMIN.S
-		        //if (freg_file[rs1] > freg_file[rs2]){
             f_wb_data = min_max_f(freg_file[rs1], freg_file[rs2], 0);
-			      //   f_wb_data = freg_file[rs2];
-			      // } else{
-			      //   f_wb_data = freg_file[rs1];
-			      // }
 		      } else if (func3 == 0b001) {//FMAX.S
             f_wb_data = min_max_f(freg_file[rs1], freg_file[rs2], 1);
-		        // if (freg_file[rs1] > freg_file[rs2]) {
-			      //   f_wb_data = freg_file[rs1];
-			      // } else{
-			      //   f_wb_data = freg_file[rs2];
-			      // } 
           } 
-          //setfflags();
           freg_file[rd] = f_wb_data;
           break;
+
         case 0b1100000: //FCVT.W.S FCVTWU.S FCVT.L.S FCVT.LU.S
           roundingmode_change(rm, freg_file[rs1]);
 
