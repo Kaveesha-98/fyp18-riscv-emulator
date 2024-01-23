@@ -2808,6 +2808,12 @@ public:
           feclearexcept(FE_ALL_EXCEPT);
 		      f_wb_data = freg_file[rs1] - freg_file[rs2];
           setfflags();
+          //To handle -NaN output
+          if (number_class(f_wb_data) == 9) {
+            int temp = 0x7FC00000;
+            float* tempPtr = reinterpret_cast<float*>(&temp);
+            f_wb_data = *tempPtr;
+          }
 
           freg_file[rd] = f_wb_data;
 
