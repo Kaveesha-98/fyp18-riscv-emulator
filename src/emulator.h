@@ -1060,7 +1060,6 @@ private:
     if (isnan(operand_1) && isnan(operand_2)) {
         //Both NaN, output is canonical NaN
         if (isoperand1_sNaN || isoperand2_sNaN) {
-            //! Uncomment in emulator.h
           temp = fcsr.read_fflags();
 	        fcsr.write_fflags(0b10000 | temp);
         }
@@ -1068,7 +1067,6 @@ private:
     } else if (isnan(operand_1) || isnan(operand_2)) {
         //If only 1 is NaN
         if (isoperand1_sNaN || isoperand2_sNaN) {
-            //! Uncomment in emulator.h
           temp = fcsr.read_fflags();
 	        fcsr.write_fflags(0b10000 | temp);
         }
@@ -2855,7 +2853,12 @@ public:
           feclearexcept(FE_ALL_EXCEPT);
 		      f_wb_data = sqrt(freg_file[rs1]);
           setfflags();
-
+          //To handle -NaN output
+          if (number_class(f_wb_data) == 9) {
+            int temp = 0x7FC00000;
+            float* tempPtr = reinterpret_cast<float*>(&temp);
+            f_wb_data = *tempPtr;
+          }
           freg_file[rd] = f_wb_data;
 
           roundingmode_revert();
@@ -2953,7 +2956,7 @@ public:
           break;
         case 0b1010000: //FEQ.S FLT.S FLE.S  here rd is in integer register file
 
-          feclearexcept(FE_ALL_EXCEPT); //! need to verify that the only NV flag will assert for comparison operators
+          feclearexcept(FE_ALL_EXCEPT);
 
           if (isnan(freg_file[rs1]) || isnan(freg_file[rs1])) {
             wb_data = 0;
