@@ -5,6 +5,7 @@
  */
 
 /* EMULATOR INCLUDE HEADER FILES */
+#include <cstdint>
 #include <unistd.h>
 #include <cstdlib>
 #include <signal.h>
@@ -1300,7 +1301,6 @@ private:
     case 0:{
       uint32_t chunk = static_cast<uint32_t>((load_data >> 0) & 0xFFFFFFFF);
       f_wb_data = *reinterpret_cast<float*>(&chunk);
-      //f_wb_data = *reinterpret_cast<float*>((load_data >> 0) & 0xFFFFFFFF);
       break; }
     case 1:{
       uint32_t chunk = static_cast<uint32_t>((load_data >> 8) & 0xFFFFFFFF);
@@ -1326,34 +1326,34 @@ private:
     return true;
   }
   //*Adding store_word_fp
-  bool store_word_fp(const uint64_t &store_addr, const uint64_t &load_data,  float &f_value, float &f_wb_data)
+  bool store_word_fp(const uint64_t &store_addr, const uint64_t &load_data,  float &value, uint64_t &wb_data)
   {
-    uint64_t *f_value_ptr = reinterpret_cast<uint64_t*>(&f_value);
-    uint64_t *f_wb_data_ptr = reinterpret_cast<uint64_t*>(&f_wb_data);
+    uint64_t value_int = *reinterpret_cast<uint64_t*>(&value);
     switch (store_addr % 8)
     {
     case 0:
-      *f_wb_data_ptr = (load_data & 0xFFFFFFFF00000000) + ((*f_value_ptr & 0xFFFFFFFF) << 0);
+      wb_data = (load_data & 0xFFFFFFFF00000000) + ((value_int & 0xFFFFFFFF) << 0);
       break;
     case 1:
-      *f_wb_data_ptr = (load_data & 0xFFFFFF00000000FF) + ((*f_value_ptr & 0xFFFFFFFF) << 8);
+      wb_data = (load_data & 0xFFFFFF00000000FF) + ((value_int & 0xFFFFFFFF) << 8);
       break;
     case 2:
-      *f_wb_data_ptr = (load_data & 0xFFFF00000000FFFF) + ((*f_value_ptr & 0xFFFFFFFF) << 16);
+      wb_data = (load_data & 0xFFFF00000000FFFF) + ((value_int & 0xFFFFFFFF) << 16);
       break;
     case 3:
-      *f_wb_data_ptr = (load_data & 0xFF00000000FFFFFF) + ((*f_value_ptr & 0xFFFFFFFF) << 24);
+      wb_data = (load_data & 0xFF00000000FFFFFF) + ((value_int & 0xFFFFFFFF) << 24);
       break;
     case 4:
-      *f_wb_data_ptr = (load_data & 0x00000000FFFFFFFF) + ((*f_value_ptr & 0xFFFFFFFF) << 32);
+      wb_data = (load_data & 0x00000000FFFFFFFF) + ((value_int & 0xFFFFFFFF) << 32);
       break;
     default:
-      *f_wb_data_ptr = -1;
+      wb_data = -1;
       return false;
       break;
     }
     return true;
   }
+
 public:
   uint64_t get_mstatus() { return mstatus.read_reg(); }
 
@@ -1612,12 +1612,14 @@ public:
       std::cout<<"All tests passed"<<endl;
       std::cout<<"PC = "<<PC << std::hex <<
                     std::setw(8) << std::setfill('0') << endl;
+                    disable_raw_mode();
                     exit(0);
     }
     if (instruction == 0x00018513) {
       std::cout<<"Tests failed"<<endl;
       std::cout<<"PC = "<<PC << std::hex <<
                     std::setw(8) << std::setfill('0') << endl;
+                    disable_raw_mode();
                     exit(1);
     }
     //--------------Debugging---------------------
@@ -2731,7 +2733,19 @@ public:
             store_data = memory.at((store_addr - DRAM_BASE) / 8);
             if (func3 == 0b010) {
               f_val = freg_file[rs2];
-              ls_success = store_word_fp(store_addr, store_data, f_val, f_wb_data);
+              ls_success = store_word_fp(store_addr, store_data, f_val, wb_data);
+            }
+            if (!ls_success)
+            {
+              PC = excep_function(PC, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, cp);
+            }
+            else
+            {
+              memory.at((store_addr - DRAM_BASE) / 8) = wb_data;
+              load_data = memory.at((load_addr - DRAM_BASE) / 8);
+              //--------------Debugging---------------------
+              std::cout <<"Store data: " << bitset<sizeof(wb_data)*8>(*reinterpret_cast<unsigned int*>(&wb_data)) <<endl;
+              //--------------Debugging---------------------
             }
           }
         } //! The rest of the conditions just terminate 
