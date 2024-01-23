@@ -1607,6 +1607,19 @@ public:
     //--------------Debugging---------------------
     std::cout << "Current instruction: " << std::hex <<
                   std::setw(8) << std::setfill('0') << instruction << "\n";
+    //To check if all tests passed
+    if (instruction == 0x00000073 && reg_file[3] == 0x1 && reg_file[17] == 0x5d && reg_file[10] == 0x0) {
+      std::cout<<"All tests passed"<<endl;
+      std::cout<<"PC = "<<PC << std::hex <<
+                    std::setw(8) << std::setfill('0') << endl;
+                    exit(0);
+    }
+    if (instruction == 0x00018513) {
+      std::cout<<"Tests failed"<<endl;
+      std::cout<<"PC = "<<PC << std::hex <<
+                    std::setw(8) << std::setfill('0') << endl;
+                    exit(1);
+    }
     //--------------Debugging---------------------
 
     if (!INS_ADDR_MISSALIG)
