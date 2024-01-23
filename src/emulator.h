@@ -2975,13 +2975,10 @@ public:
           } else {
             if (func3 == 0b000) {   //Less than or equal
               wb_data =  (freg_file[rs1] <= freg_file[rs2]) ? 1 : 0;
-			        break;
 		        } else if (func3 == 0b001){  //Less than
               wb_data =  (freg_file[rs1] < freg_file[rs2]) ? 1 : 0;
-			        break;
 		        } else if (func3 == 0b010){ //Equal
               wb_data =  (freg_file[rs1] == freg_file[rs2]) ? 1 : 0;
-			        break;
             } 
           }
           reg_file[rd] = wb_data;
