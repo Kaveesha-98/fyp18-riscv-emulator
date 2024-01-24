@@ -1022,6 +1022,49 @@ private:
     std::fesetround(FE_TONEAREST);
   }
 
+  //* Function is used to unary rounding
+  float round_to_int(uint8_t RM,float num){
+  //this function is used to unary rounding
+  //fcvt.w.s,fcvt.wu.s,fcvt.l.s,fcvt.lu.s
+  //fcvt.s.w,fcvt.s.wu,fcvt.s.l,fcvt.s.lu
+    switch(RM){
+      case (0b000):
+        //rne
+        return round(num);
+        break;
+      case (0b001):
+        //rtz
+        return trunc(num);
+        break;
+      case (0b010):
+        //rdn
+        return floor(num);
+        break;
+      case (0b011):
+        //rup
+        return ceil(num);
+        break;
+      case (0b100):
+        //rmm
+        //need to complete
+        break;
+      case (0b101):
+        //invalid
+        break;
+      case (0b110):
+        //invalid
+        break;
+      case (0b111):
+        //dynamic
+        RM=static_cast<uint8_t>(fcsr.read_frm());
+        round_to_int(rm,num);
+        break;
+      default:
+        break;
+    }
+  return num;
+}
+
   //* To access exceptions
   void setfflags(){
 	  //feclearexcept(FE_ALL_EXCEPT);
@@ -2901,14 +2944,14 @@ public:
         case 0b0010000: //FSGNJ.S FSGNJN.S FSGNJX.S
           switch (rm) {
           case 0b000: //FSGNJ.S
-            if (freg_file[rs2] > 0) {
-              if (freg_file[rs1] > 0) {
+            if (freg_file[rs2] >= 0) {
+              if (freg_file[rs1] >= 0) {
                 f_wb_data = freg_file[rs1];
               } else {
                 f_wb_data = (-1) * freg_file[rs1];
               }
             } else {
-              if (freg_file[rs1] > 0) {
+              if (freg_file[rs1] >= 0) {
                 f_wb_data = (-1) * freg_file[rs1];
               } else {
                 f_wb_data = freg_file[rs1];
@@ -2916,14 +2959,14 @@ public:
             }
             break;
           case 0b001: //FSGNJN.S
-		        if(freg_file[rs2]>0){
-			        if(freg_file[rs2]>0){
+		        if(freg_file[rs2] >= 0){
+			        if(freg_file[rs1] >= 0){
 			          f_wb_data=(-1)*freg_file[rs1];
 			        } else{
 			          f_wb_data=freg_file[rs1];
 			        }
 			      } else{
-			        if(freg_file[rs2]>0){
+			        if(freg_file[rs1] >= 0){
 			          f_wb_data=freg_file[rs1];
 			        } else{
 			          f_wb_data=(-1)*freg_file[rs1];
@@ -2931,14 +2974,14 @@ public:
 			      }
             break;
           case 0b010: //FSGNJX.S
-		        if(freg_file[rs2]>0){
-			        if(freg_file[rs1]>0){
+		        if(freg_file[rs2] >= 0){
+			        if(freg_file[rs1] >= 0){
 			          f_wb_data=freg_file[rs1];
 			        } else{
 			          f_wb_data=freg_file[rs1];
 			        }
 			      } else{
-			        if(freg_file[rs1]>0){
+			        if(freg_file[rs1] >= 0){
 			          f_wb_data=(-1)*freg_file[rs1];
 			        } else{
 			          f_wb_data=(-1)*freg_file[rs1];
@@ -2967,24 +3010,114 @@ public:
 
 		      switch (rs2) {
 		        case 0b00000: //FCVT.W.S
-              wb_data= static_cast<uint64_t>(static_cast<int32_t>(freg_file[rs1]));
+              if(!isnan(freg_file[rs1])){
+                if (freg_file[rs1]>=2147483647.0){
+                  wb_data=0x000000007fffffff;
+                  //Set invalid flag high
+                  temp = fcsr.read_fflags();
+	                fcsr.write_fflags(0b10000 | temp);
+                }
+                else{
+                  //no need to check for the lower limit of int32_t because it is handled accordingly
+                  wb_data= static_cast<uint64_t>(static_cast<int32_t>(freg_file[rs1]));
+                }
+              }
+              else{
+                wb_data=0x000000007fffffff;
+                //Set invalid flag high
+                temp = fcsr.read_fflags();
+	              fcsr.write_fflags(0b10000 | temp);
+              }
               break;
             case 0b00001: //FCVT.WU.S
-			        wb_data= static_cast<uint64_t>(static_cast<uint32_t>(freg_file[rs1]));
+              if(!isnan(freg_file[rs1])){
+                if(isinf(freg_file[rs1]) && !signbit(freg_file[rs1])){
+                    //check whether positive inf, negative inf is manged below control flow
+                    wb_data=0xffffffffffffffff;
+                }
+                else if(freg_file[rs1]<=-1.0){
+                  wb_data=0;
+                  //Set invalid flag high
+                  temp = fcsr.read_fflags();
+	                fcsr.write_fflags(0b10000 | temp);
+                }
+                else if(freg_file[rs1]<0.0){
+                  freg_file[rs1]=round_to_int(rm,freg_file[rs1]);
+                  if(freg_file[rs1]==0.0){
+                    wb_data=0;
+                    //Set inexact flag high
+                    temp = fcsr.read_fflags();
+	                  fcsr.write_fflags(0b00001 | temp);
+                  }
+                  else{
+                    wb_data=0;
+                    //Set invaid flag high
+                    temp = fcsr.read_fflags();
+	                  fcsr.write_fflags(0b10000 | temp);
+                  }
+                }
+                else{
+                  wb_data= static_cast<uint64_t>(static_cast<uint32_t>(freg_file[rs1]));
+                  wb_data=sign_extend<uint64_t>(wb_data,32);
+                }
+              }
+              else{
+                //if it is NaN (positive or negative)
+                wb_data=0xffffffffffffffff;
+              }
               break;
             case 0b00010: //FCVT.L.S
-			        wb_data= static_cast<uint64_t>(static_cast<int64_t>(freg_file[rs1]));
+              if(!isnan(freg_file[rs1])){
+                if(isinf(freg_file[rs1]) && !signbit(freg_file[rs1])){
+                  wb_data=0x7fffffffffffffff;
+                }
+                else{
+			            wb_data= static_cast<uint64_t>(static_cast<int64_t>(freg_file[rs1]));
+                }
+              }
+              else{
+                wb_data=0x7fffffffffffffff;
+              }
               break;
             case 0b00011: //FCVT.LU.S
-			        wb_data= static_cast<uint64_t>(freg_file[rs1]);
+			        if(!isnan(freg_file[rs1])){
+                if(isinf(freg_file[rs1]) && !signbit(freg_file[rs1])){
+                  wb_data=0xffffffffffffffff;
+                }
+                else if(freg_file[rs1]<=-1.0){
+                  wb_data=0;
+                  //Set invalid flag high
+                  temp = fcsr.read_fflags();
+	                fcsr.write_fflags(0b10000 | temp);
+                }
+                else if(freg_file[rs1]<0.0){
+                  freg_file[rs1]=round_to_int(rm,freg_file[rs1]);
+                  if(freg_file[rs1]==0.0){
+                    wb_data=0;
+                    //Set inexact flag high
+                    temp = fcsr.read_fflags();
+	                  fcsr.write_fflags(0b00001 | temp);
+                  }
+                  else{
+                    wb_data=0;
+                    //Set invaid flag high
+                    temp = fcsr.read_fflags();
+	                  fcsr.write_fflags(0b10000 | temp);
+                  }
+                }
+                else{
+                  wb_data= wb_data= static_cast<uint64_t>(freg_file[rs1]);
+                }
+              }
+              else{
+                wb_data=0xffffffffffffffff;
+              }
               break;
             default:		
-              break;  
+              break; 
 		      }
           setfflags();
-
           reg_file[rd] = wb_data;
-
           roundingmode_revert();
           break;
         case 0b1010000: //FEQ.S FLT.S FLE.S  here rd is in integer register file
@@ -3025,33 +3158,23 @@ public:
           feclearexcept(FE_ALL_EXCEPT); //! need to verify that the only NX flag will assert for casting operators
 
 		      switch (rs2){
-		        case 0b00000: {//FCVT.S.W
-		          auto temp_value = static_cast<int32_t>(reg_file[rs1]);
-              f_wb_data = reinterpret_cast<float&>(temp_value);
+		        case 0b00000: //FCVT.S.W
+              f_wb_data=signed_value32(reg_file[rs1]);
               break;
-            }
-            case 0b00001: {//FCVT.S.WU
-		          auto temp_value = static_cast<uint32_t>(reg_file[rs1]);
-              f_wb_data = reinterpret_cast<float&>(temp_value);
+            case 0b00001: //FCVT.S.WU
+              f_wb_data=(reg_file[rs1] & MASK32);
               break;
-            }
-            case 0b00010: {//FCVT.S.L
-		          auto temp_value = static_cast<int64_t>(reg_file[rs1]);
-              f_wb_data = reinterpret_cast<float&>(temp_value);
+            case 0b00010: //FCVT.S.L
+              f_wb_data=signed_value(reg_file[rs1]);
               break;
-            }
-            case 0b00011: {//FCVT.S.LU 
-		          auto temp_value = static_cast<uint64_t>(reg_file[rs1]);
-              f_wb_data = reinterpret_cast<float&>(temp_value);
+            case 0b00011: //FCVT.S.LU 
+              f_wb_data=reg_file[rs1];
               break;
-            }
             default:	
               break;	
 		      }
           setfflags();
-            
           freg_file[rd] = f_wb_data;
-
           roundingmode_revert();
           break;
         case 0b1111000: {//FMV.W.X 
@@ -3072,7 +3195,7 @@ public:
             //Else invalid
           } else if (rm == 0b000) { //FMV.X.W
               int32_t temp = *reinterpret_cast<int32_t*>(&freg_file[rs1]);
-              wb_data = (static_cast<uint64_t>(signbit(temp) ? 1 : 0) << 32) | temp;
+              wb_data = (static_cast<uint64_t>(signbit(freg_file[rs1]) ? 1 : 0) << 32) | temp;
           }
           reg_file[rd] = wb_data;
           break;
