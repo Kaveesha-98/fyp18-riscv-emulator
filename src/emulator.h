@@ -1648,22 +1648,16 @@ public:
     instruction = fetch_instruction(PC);
 
     //--------------Debugging---------------------
-    std::cout << "Current instruction: " << std::hex <<
-                  std::setw(8) << std::setfill('0') << instruction << "\n";
     //To check if all tests passed
     if (instruction == 0x00000073 && reg_file[3] == 0x1 && reg_file[17] == 0x5d && reg_file[10] == 0x0) {
       std::cout<<"All tests passed"<<endl;
-      std::cout<<"PC = "<<PC << std::hex <<
-                    std::setw(8) << std::setfill('0') << endl;
-                    disable_raw_mode();
-                    exit(0);
+      disable_raw_mode();
+      exit(0);
     }
     if (instruction == 0x00018513) {
       std::cout<<"Tests failed"<<endl;
-      std::cout<<"PC = "<<PC << std::hex <<
-                    std::setw(8) << std::setfill('0') << endl;
-                    disable_raw_mode();
-                    exit(1);
+      disable_raw_mode();
+      exit(1);
     }
     //--------------Debugging---------------------
 
@@ -2744,27 +2738,16 @@ public:
             if ((load_addr >= DRAM_BASE) & (load_addr <= (DRAM_BASE + 0x9000000)))
             {
               load_data = memory.at((load_addr - DRAM_BASE) / 8);
-              //--------------Debugging---------------------
-              std::cout <<"Load data: " << load_data << endl;
-              //--------------Debugging---------------------
-
               //For load word
               if (func3 == 0b010) {
                 if (!load_word_fp(load_addr, load_data, f_wb_data)) {
                   LD_ADDR_MISSALIG = true;
                 } else {
                   freg_file[rd] = f_wb_data;
-
-                  //--------------Debugging---------------------
-                  std::cout << "f_wb_data value : "<< bitset<sizeof(f_wb_data)*8>(*reinterpret_cast<unsigned int*>(&f_wb_data))
-                  << endl;
-                  //--------------Debugging---------------------
-
                 }
               }
             }
           }
-          //! The rest of the conditions just terminate 
         }
         break;
       case fstore:
@@ -2786,12 +2769,9 @@ public:
             {
               memory.at((store_addr - DRAM_BASE) / 8) = wb_data;
               load_data = memory.at((load_addr - DRAM_BASE) / 8);
-              //--------------Debugging---------------------
-              std::cout <<"Store data: " << bitset<sizeof(wb_data)*8>(*reinterpret_cast<unsigned int*>(&wb_data)) <<endl;
-              //--------------Debugging---------------------
             }
           }
-        } //! The rest of the conditions just terminate 
+        } 
         break;
       case fmadd: {
         float temp_result = (freg_file[rs1] * freg_file[rs2]) + freg_file[rs3];
@@ -3006,7 +2986,7 @@ public:
         case 0b1100000: //FCVT.W.S FCVTWU.S FCVT.L.S FCVT.LU.S
           roundingmode_change(rm, freg_file[rs1]);
 
-          feclearexcept(FE_ALL_EXCEPT); //! need to verify that the only NX flag will assert for casting operators
+          feclearexcept(FE_ALL_EXCEPT); 
 
 		      switch (rs2) {
 		        case 0b00000: //FCVT.W.S
@@ -3155,7 +3135,7 @@ public:
         case 0b1101000: //FCVT.S.W FCVT.S.WU  FCVT.S.L FCVT.S.LU 
           roundingmode_change(rm, reg_file[rs1]);
 
-          feclearexcept(FE_ALL_EXCEPT); //! need to verify that the only NX flag will assert for casting operators
+          feclearexcept(FE_ALL_EXCEPT); 
 
 		      switch (rs2){
 		        case 0b00000: //FCVT.S.W
