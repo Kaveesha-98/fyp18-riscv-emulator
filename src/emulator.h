@@ -1275,6 +1275,7 @@ public:
       imm = (imm << 20) >> 20;
 
       amo_op = ((instruction) >> 27) & 0b11111;
+      reg_file[0] = 0UL;
 
       switch (opcode)
       {
