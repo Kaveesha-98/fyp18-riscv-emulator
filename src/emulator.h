@@ -1016,6 +1016,7 @@ private:
   }
 
 public:
+  uint64_t get_semphore_status() { return (((amo_reserve_addr64&0x00000000FFFFFFF8UL) | amo_reserve_valid64) << 32) | ((amo_reserve_addr&0x00000000FFFFFFFCUL) | amo_reserve_valid); }
   uint64_t get_mstatus() { return mstatus.read_reg(); }
 
   vector<uint64_t> reg_file = vector<uint64_t>(32);          // register file
