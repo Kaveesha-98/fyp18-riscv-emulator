@@ -5,6 +5,7 @@
  */
 
 /* EMULATOR INCLUDE HEADER FILES */
+#include <cstdint>
 #include <unistd.h>
 #include <cstdlib>
 #include <signal.h>
@@ -18,8 +19,13 @@
 #include <fcntl.h>
 #include <iostream>
 #include <vector>
+#include <cmath>
+#include <bitset>
+#include <fenv.h>
 
 #include "constants.h"
+
+#pragma STDC FENV_ACCESS ON
 
 using namespace std;
 
@@ -75,7 +81,7 @@ int kbhit()
  * code for co-simulation and emulation with hardware simulation
  * of a RISC-V core
  * e.g.: To match peripheral accesses between the emulator and
- * simulator are synchrocous, memory_read() will change to provide
+ * simulator are synchronous, memory_read() will change to provide
  * this functionality.
  */
 class emulator
@@ -89,8 +95,8 @@ private:
 
   bool csr_read_success = false;
   plevel_t cp = (plevel_t)MMODE;
-  bool LD_ADDR_MISSALIG = false;    // load address misalignmen
-  bool STORE_ADDR_MISSALIG = false; // store/amo address misali
+  bool LD_ADDR_MISSALIG = false;    // load address misalignment
+  bool STORE_ADDR_MISSALIG = false; // store/amo address misalignment
   bool ILL_INS = false;             // illegal instruction
   bool EBREAK = false;              // break point
   bool INS_ADDR_MISSALIG = false;
@@ -117,12 +123,21 @@ private:
   uint32_t imm = 0;
   uint64_t amo_op = 0;
 
+  //* Line 106, field deceleration
+  uint64_t rm = 0;
+  uint64_t fmt = 0;
+  uint64_t funt5 = 0;
+  uint64_t rs3 = 0;
+
   bool amo_reserve_valid = false;
   bool amo_reserve_valid64 = false;
   uint64_t amo_reserve_addr = 0;
   uint64_t amo_reserve_addr64 = 0;
 
   uint64_t wb_data = 0;
+
+  //* To store intermediate result in single precision operations
+  float f_wb_data = 0;
 
   uint64_t load_addr = 0;
   uint64_t load_data = 0;
@@ -131,6 +146,9 @@ private:
   uint64_t store_addr = 0;
   uint64_t store_data = 0;
   uint64_t val = 0;
+
+  //*To store f_register values
+  float f_val = 0;
 
   bool branch = false;
 
@@ -152,7 +170,8 @@ private:
   uint64_t PC_phy;
   uint64_t instruction;
 
-  uint64_t misa = 0b100000001000100000001 | (0b1llu << 63);
+  //* Line 155 Change MISA to incorporate floating point.
+  uint64_t misa = 0b100000001000100100001 | (0b1llu << 63);     
   uint64_t mscratch = 0;
   uint64_t medeleg = 0;
   uint64_t mideleg = 0;
@@ -447,6 +466,53 @@ private:
     }
   } ucause;
 
+  //* Line 449 FCSR Struct
+  struct fcsr_t{
+    uint8_t frm; 
+    uint8_t nv; 
+    uint8_t dz; 
+    uint8_t of; 
+    uint8_t uf; 
+    uint8_t nx;
+    fcsr_t(){
+     frm = 0;
+      nv = 0;
+      dz = 0;
+      of = 0;
+      uf = 0;
+      nx = 0; 
+    }
+
+    uint64_t read_reg(){
+      return ((( frm & 0b111) << 5)+((nv & 0b1) << 4) + ((dz & 0b1) << 3) + ((of & 0b1) << 2) + ((uf & 0b1) << 1) + (nx & 0b1));
+    }
+	  uint64_t read_frm(){
+      return (frm & 0b111);
+    }
+	  uint64_t read_fflags(){
+      return (((nv & 0b1) << 4) + ((dz & 0b1) << 3) + ((of & 0b1) << 2) + ((uf & 0b1) << 1) + (nx & 0b1));
+    }
+
+    void write_reg(const uint64_t &val){
+      nx = val & 0b1;
+      uf = (val >> 1) & 0b1;
+      of = (val >> 2) & 0b1;
+      dz = (val >> 3) & 0b1;
+      nv = (val >> 4) & 0b1;
+     frm = (val >> 5) & 0b111;
+    }
+	  void write_frm(const uint64_t &val){
+     frm = val & 0b111;
+    }
+	  void write_fflags(const uint64_t &val){
+      nx = val & 0b1;
+      uf = (val >> 1) & 0b1;
+      of = (val >> 2) & 0b1;
+      dz = (val >> 3) & 0b1;
+      nv = (val >> 4) & 0b1;
+    }
+  } fcsr;
+
   uint64_t &mtime = memory.at(MTIME_ADDR / 8);
   uint64_t &mtimecmp = memory.at(MTIMECMP_ADDR / 8);
 
@@ -477,6 +543,13 @@ private:
       return mip.read_reg();
     case MTVEC:
       return mtvec.read_reg();
+    //*Adding FCSR
+    case FCSR:
+	    return fcsr.read_reg();
+	  case FRM:
+	    return fcsr.read_frm();
+	  case FFLAGS:
+	    return fcsr.read_fflags();
     case MEPC:
       return mepc;
     case MCAUSE:
@@ -531,6 +604,15 @@ private:
     case MTVEC:
       mtvec.write_reg(val);
       return true;
+    case FCSR:
+	    fcsr.write_reg(val);
+	    return true;
+	  case FRM:
+	    fcsr.write_frm(val);
+	    return true;
+	  case FFLAGS:
+	    fcsr.write_fflags(val);
+      return true;	
     case MEPC:
       mepc = val;
       return true;
@@ -659,6 +741,74 @@ private:
       return (y ^ (1lu << 31)) - (1lu << 31);
     else
       return y;
+  }
+
+  //*Line 655
+  int number_class(float num_check){
+    //Getting bit representations for mantissa and exponent
+    int const num_check_size = sizeof(num_check)*8;
+    bitset<num_check_size> num_check_b = bitset<num_check_size>(*reinterpret_cast<uint64_t*>(&num_check));
+    bitset<num_check_size> mantissa_b_mask = 0b11111111111111111111111;
+    bitset<num_check_size> mantissa_b = num_check_b & mantissa_b_mask;
+    bitset<num_check_size> exponent_b_mask = 0b11111111;
+    bitset<num_check_size> exponent_b = (num_check_b >> 23) & exponent_b_mask;
+
+    // TODO rewrite these conditions with bitset operations - cleanup
+    bool isPositiveInf = std::isinf(num_check) && !std::signbit(num_check);
+    bool isNegativeInf = std::isinf(num_check) && std::signbit(num_check);
+    bool isPositiveZero = std::fpclassify(num_check) == FP_ZERO && !std::signbit(num_check);
+    bool isNegativeZero = std::fpclassify(num_check) == FP_ZERO && std::signbit(num_check);
+    //? Subnormal check didn't work as expected
+    bool isPositiveSubnormal = std::fpclassify(num_check) == FP_SUBNORMAL && std::signbit(num_check);
+    bool isNegativeSubnormal = std::fpclassify(num_check) == FP_SUBNORMAL && std::signbit(num_check);
+    if (std::signbit(num_check)) { //Checking for negative numbers
+      if (std::isnan(num_check)) {
+        if (mantissa_b[22] == 0) {
+            //Signalling NaN
+            //In range FF800001 and FFBFFFFF
+            return 8;
+        } else {
+          //Quiet NaN
+          //In range  FFC00000 and FFFFFFFF
+            return 9;
+        }
+      } else if (isNegativeInf) {  //Sign bit is 1
+        return 0;
+      } else if (isNegativeZero) {
+        return 3;
+      } else if (exponent_b.none()) {
+        // isNegativeSubnormal, in this order
+        return 2;
+      } else {
+        //A negative normal number
+        return 1;
+      }
+    } else {  //Sign bit is zero
+      //First check for NaN
+      //std::bitset<32> bits(num_check);
+      if (std::isnan(num_check)) {
+        if (mantissa_b[22] == 0) {
+            //Signalling NaN
+            //In range 7F800001 and 7FBFFFFF 
+            return 8;
+        } else {
+          //Quiet NaN
+          //In range  7FC00000 and 7FFFFFFF 
+            return 9;
+        }
+      } else if (isPositiveInf) {
+        return 7;
+      } else if (isPositiveZero) {
+        return 4;
+      } else if (exponent_b.none()) {
+        // isPositiveSubnormal, in this order
+        return 5;
+      } else {
+        //A positive normal number
+        return 6;
+      }
+    }
+    return -1;
   }
 
   template <class T>
@@ -822,6 +972,177 @@ private:
     }
     return (T)(-1);
   }
+
+  //*Line 775 Add rounding modes
+  void roundingmode_change(const uint8_t RM, const float result_temp){
+    //? const uint8_t &RM is this the way to get the rounding mode?
+    switch (RM) {
+      case (0b000):
+        std::fesetround(FE_TONEAREST);
+        break;
+      case (0b001):
+        std::fesetround(FE_TOWARDZERO);
+        break;
+      case (0b010):
+        std::fesetround(FE_DOWNWARD);
+        break;
+      case (0b011):
+        std::fesetround(FE_UPWARD);
+        break;
+      case (0b100):
+        if (std::signbit(result_temp)) {
+          std::fesetround(FE_DOWNWARD);
+          break;
+        } else {
+          std::fesetround(FE_UPWARD);
+          break;
+        }
+        break;
+      case (0b101):
+        //Invalid
+        break;
+      case (0b110):
+        //Invalid
+        break;
+      case (0b111):
+        //Read fcsr frm field
+        //And call one of the first five
+        break;
+      default:
+        break;
+
+      //TODO Need to add Invalid options
+      // ? Round to Nearest, ties to Max Magnitude need to be implemented in 
+      // ? in arithmetic instruction location
+    }
+  }
+
+  void roundingmode_revert(){
+    //Default rounding mode
+    std::fesetround(FE_TONEAREST);
+  }
+
+  //* Function is used to unary rounding
+  float round_to_int(uint8_t RM,float num){
+  //this function is used to unary rounding
+  //fcvt.w.s,fcvt.wu.s,fcvt.l.s,fcvt.lu.s
+  //fcvt.s.w,fcvt.s.wu,fcvt.s.l,fcvt.s.lu
+    switch(RM){
+      case (0b000):
+        //rne
+        return round(num);
+        break;
+      case (0b001):
+        //rtz
+        return trunc(num);
+        break;
+      case (0b010):
+        //rdn
+        return floor(num);
+        break;
+      case (0b011):
+        //rup
+        return ceil(num);
+        break;
+      case (0b100):
+        //rmm
+        //need to complete
+        break;
+      case (0b101):
+        //invalid
+        break;
+      case (0b110):
+        //invalid
+        break;
+      case (0b111):
+        //dynamic
+        RM=static_cast<uint8_t>(fcsr.read_frm());
+        round_to_int(rm,num);
+        break;
+      default:
+        break;
+    }
+  return num;
+}
+
+  //* To access exceptions
+  void setfflags(){
+	  //feclearexcept(FE_ALL_EXCEPT);
+	  int temp;
+	  if (fetestexcept(FE_INVALID)){
+		temp = fcsr.read_fflags();
+	    fcsr.write_fflags(0b10000 | temp);
+	  }
+	  if (fetestexcept(FE_DIVBYZERO)){
+		temp = fcsr.read_fflags();
+		fcsr.write_fflags(0b01000 | temp);  
+	  }
+	  if (fetestexcept(FE_OVERFLOW)){
+		temp = fcsr.read_fflags();
+		fcsr.write_fflags(0b00100 | temp);  
+	  }
+	  if (fetestexcept(FE_UNDERFLOW)){
+		temp = fcsr.read_fflags();
+		fcsr.write_fflags(0b00010 | temp);   
+	  }
+	  if (fetestexcept(FE_INEXACT)){
+		temp = fcsr.read_fflags();
+		fcsr.write_fflags(0b00001 | temp);   
+	  }
+  }
+
+  //* To handle min-max instructions of floating point S
+  float min_max_f(float operand_1, float operand_2, int type){
+    //type = 0 -> min, type = 1 -> max
+    bitset<32> operand_1_b = bitset<32>(*reinterpret_cast<uint64_t*>(&operand_1));
+    bitset<32> operand_2_b = bitset<32>(*reinterpret_cast<uint64_t*>(&operand_2));
+    bool isoperand1_sNaN = isnan(operand_1) && !operand_1_b[22];
+    bool isoperand2_sNaN = isnan(operand_2) && !operand_2_b[22];
+    int temp;               //For flags
+    unsigned int result;    //For final result
+
+    if (isnan(operand_1) && isnan(operand_2)) {
+        //Both NaN, output is canonical NaN
+        if (isoperand1_sNaN || isoperand2_sNaN) {
+          temp = fcsr.read_fflags();
+	        fcsr.write_fflags(0b10000 | temp);
+        }
+        result = 0x7FC00000;
+    } else if (isnan(operand_1) || isnan(operand_2)) {
+        //If only 1 is NaN
+        if (isoperand1_sNaN || isoperand2_sNaN) {
+          temp = fcsr.read_fflags();
+	        fcsr.write_fflags(0b10000 | temp);
+        }
+        return (isnan(operand_1)) ? operand_2: operand_1;
+        //return the non-NaN value
+
+    } else if (fpclassify(operand_1) == FP_ZERO && fpclassify(operand_2) == FP_ZERO) {
+        //If both inputs are zero.
+        if (signbit(operand_1) && signbit(operand_2)) {
+            //If both of the operands are negative
+            result = 0x80000000;
+        } else if (signbit(operand_1) || signbit(operand_2)) {
+            //If only one is negative
+            result = (type) ? 0x00000000 : 0x80000000;
+            //Return +0.0 for max else -0.0
+        } else {
+            //Both operands positive
+            result = 0x00000000;
+            //Return +0.0
+        }
+    } else {
+        //Operands are not 0's or NaN's
+        if (type) {
+            return (operand_1 > operand_2) ? operand_1 : operand_2;
+        } else {
+            return (operand_1 > operand_2) ? operand_2 : operand_1;
+        }
+        //Handle as normal min, max situation
+    }
+    float* resultPtr = reinterpret_cast<float*>(&result);
+    return *resultPtr;
+}
 
   bool load_word(const uint64_t &load_addr, const uint64_t &load_data, uint64_t &wb_data)
   {
@@ -1015,23 +1336,96 @@ private:
     return true;
   }
 
+  //*Adding load_word_fp
+  bool load_word_fp(const uint64_t &load_addr, const uint64_t &load_data, float &f_wb_data)
+  {
+    switch (load_addr % 8)
+    {
+    case 0:{
+      uint32_t chunk = static_cast<uint32_t>((load_data >> 0) & 0xFFFFFFFF);
+      f_wb_data = *reinterpret_cast<float*>(&chunk);
+      break; }
+    case 1:{
+      uint32_t chunk = static_cast<uint32_t>((load_data >> 8) & 0xFFFFFFFF);
+      f_wb_data = *reinterpret_cast<float*>(&chunk);
+      break; }
+    case 2:{
+      uint32_t chunk = static_cast<uint32_t>((load_data >> 16) & 0xFFFFFFFF);
+      f_wb_data = *reinterpret_cast<float*>(&chunk);
+      break; }
+    case 3:{
+      uint32_t chunk = static_cast<uint32_t>((load_data >> 24) & 0xFFFFFFFF);
+      f_wb_data = *reinterpret_cast<float*>(&chunk);
+      break; }
+    case 4:{
+      uint32_t chunk = static_cast<uint32_t>((load_data >> 32) & 0xFFFFFFFF);
+      f_wb_data = *reinterpret_cast<float*>(&chunk);
+      break; }
+    default:
+      f_wb_data = -1;
+      return false;
+      break;
+    }
+    return true;
+  }
+  //*Adding store_word_fp
+  bool store_word_fp(const uint64_t &store_addr, const uint64_t &load_data,  float &value, uint64_t &wb_data)
+  {
+    uint64_t value_int = *reinterpret_cast<uint64_t*>(&value);
+    switch (store_addr % 8)
+    {
+    case 0:
+      wb_data = (load_data & 0xFFFFFFFF00000000) + ((value_int & 0xFFFFFFFF) << 0);
+      break;
+    case 1:
+      wb_data = (load_data & 0xFFFFFF00000000FF) + ((value_int & 0xFFFFFFFF) << 8);
+      break;
+    case 2:
+      wb_data = (load_data & 0xFFFF00000000FFFF) + ((value_int & 0xFFFFFFFF) << 16);
+      break;
+    case 3:
+      wb_data = (load_data & 0xFF00000000FFFFFF) + ((value_int & 0xFFFFFFFF) << 24);
+      break;
+    case 4:
+      wb_data = (load_data & 0x00000000FFFFFFFF) + ((value_int & 0xFFFFFFFF) << 32);
+      break;
+    default:
+      wb_data = -1;
+      return false;
+      break;
+    }
+    return true;
+  }
+
 public:
-  uint64_t get_semphore_status() { return (((amo_reserve_addr64&0x00000000FFFFFFF8UL) | amo_reserve_valid64) << 32) | ((amo_reserve_addr&0x00000000FFFFFFFCUL) | amo_reserve_valid); }
   uint64_t get_mstatus() { return mstatus.read_reg(); }
 
   vector<uint64_t> reg_file = vector<uint64_t>(32);          // register file
+  //*Line 1021: Add F registers
+  vector<float> freg_file = vector<float>(32);        // F register file
 
+  //*Line 1023 Add Fregs to show state
   void show_state() {
     printf("pc: %016lx mstatus: %016lx mie: %016lx mcause: %016lx mepc: %016lx rx_ready: %d\n\
     x00: %016lx x01: %016lx x02: %016lx x03: %016lx x04: %016lx x05: %016lx x06: %016lx x07: %016lx\n\
     x08: %016lx x09: %016lx x10: %016lx x11: %016lx x12: %016lx x13: %016lx x14: %016lx x15: %016lx\n\
     x16: %016lx x17: %016lx x18: %016lx x19: %016lx x20: %016lx x21: %016lx x22: %016lx x23: %016lx\n\
-    x24: %016lx x25: %016lx x26: %016lx x27: %016lx x28: %016lx x29: %016lx x30: %016lx x31: %016lx\n",
+    x24: %016lx x25: %016lx x26: %016lx x27: %016lx x28: %016lx x29: %016lx x30: %016lx x31: %016lx\n\
+    fcsr: %016lx\n\
+    f00: %016lf f01: %016lf f02: %016lf f03: %016lf f04: %016lf f05: %016lf f06: %016lf f07: %016lf\n\
+    f08: %016lf f09: %016lf f10: %016lf f11: %016lf f12: %016lf f13: %016lf f14: %016lf f15: %016lf\n\
+    f16: %016lf f17: %016lf f18: %016lf f19: %016lf f20: %016lf f21: %016lf f22: %016lf f23: %016lf\n\
+    f24: %016lf f25: %016lf f26: %016lf f27: %016lf f28: %016lf f29: %016lf f30: %016lf f31: %016lf\n",
     PC, mstatus.read_reg(), mie.read_reg(), mcause.read_reg(), mepc, 1,
     reg_file[0], reg_file[1], reg_file[2], reg_file[3], reg_file[4], reg_file[5], reg_file[6], reg_file[7], 
     reg_file[8], reg_file[9], reg_file[10], reg_file[11], reg_file[12], reg_file[13], reg_file[14], reg_file[15],
     reg_file[16], reg_file[17], reg_file[18], reg_file[19], reg_file[20], reg_file[21], reg_file[22], reg_file[23],
-    reg_file[24], reg_file[25], reg_file[26], reg_file[27], reg_file[28], reg_file[29], reg_file[30], reg_file[31]);
+    reg_file[24], reg_file[25], reg_file[26], reg_file[27], reg_file[28], reg_file[29], reg_file[30], reg_file[31],
+    fcsr.read_reg(),
+    freg_file[0], freg_file[1], freg_file[2], freg_file[3], freg_file[4], freg_file[5], freg_file[6], freg_file[7], 
+    freg_file[8], freg_file[9], freg_file[10], freg_file[11], freg_file[12], freg_file[13], freg_file[14], freg_file[15],
+    freg_file[16], freg_file[17], freg_file[18], freg_file[19], freg_file[20], freg_file[21], freg_file[22], freg_file[23],
+    freg_file[24], freg_file[25], freg_file[26], freg_file[27], freg_file[28], freg_file[29], freg_file[30], freg_file[31]);
   }
 
   __uint64_t get_pc() { return PC; }
@@ -1253,6 +1647,20 @@ public:
 
     instruction = fetch_instruction(PC);
 
+    //--------------Debugging---------------------
+    //To check if all tests passed
+    if (instruction == 0x00000073 && reg_file[3] == 0x1 && reg_file[17] == 0x5d && reg_file[10] == 0x0) {
+      std::cout<<"All tests passed"<<endl;
+      disable_raw_mode();
+      exit(0);
+    }
+    if (instruction == 0x00018513) {
+      std::cout<<"Tests failed"<<endl;
+      disable_raw_mode();
+      exit(1);
+    }
+    //--------------Debugging---------------------
+
     if (!INS_ADDR_MISSALIG)
     {
 
@@ -1276,7 +1684,12 @@ public:
       imm = (imm << 20) >> 20;
 
       amo_op = ((instruction) >> 27) & 0b11111;
-      reg_file[0] = 0UL;
+
+      //* Line 1262 Add new opcode fields
+      rm = ((instruction) >> 12) & 0b111;
+      fmt = ((instruction) >> 25) & 0b11;
+      funt5 = ((instruction) >> 27) & 0b11111;
+      rs3 = ((instruction) >> 27) & 0b11111;
 
       switch (opcode)
       {
@@ -1626,7 +2039,9 @@ public:
           switch (func3)
           {
           case 0b000:
+
             wb_data = reg_file[rs1] + reg_file[rs2]; // ADD
+
             break;
           case 0b010:
             wb_data = (signed_value(reg_file[rs1]) < signed_value(reg_file[rs2])) ? 1 : 0; // SLT
@@ -2311,8 +2726,462 @@ public:
           break;
         }
         break;
-      default:
+      //* Line 1043 Adding S instructions
+      //wb_data and f_wb_data assigned as arrised to reduce confussion. 
+      case fload:
+        load_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm11_0, 12)) & 0x00000000ffffffff;
+        if (signed_value(load_addr) < 0){
+            LD_ACC_FAULT = true;
+        } else {
+          if ((load_addr != FIFO_ADDR_RX) && ((load_addr != FIFO_ADDR_TX)))
+          {
+            if ((load_addr >= DRAM_BASE) & (load_addr <= (DRAM_BASE + 0x9000000)))
+            {
+              load_data = memory.at((load_addr - DRAM_BASE) / 8);
+              //For load word
+              if (func3 == 0b010) {
+                if (!load_word_fp(load_addr, load_data, f_wb_data)) {
+                  LD_ADDR_MISSALIG = true;
+                } else {
+                  freg_file[rd] = f_wb_data;
+                }
+              }
+            }
+          }
+        }
         break;
+      case fstore:
+        store_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm_s, 12)) & 0x00000000ffffffff;
+        if (store_addr != FIFO_ADDR_TX)
+        {
+          if ((store_addr >= DRAM_BASE) & (store_addr < (DRAM_BASE + 0x9000000)))
+          {
+            store_data = memory.at((store_addr - DRAM_BASE) / 8);
+            if (func3 == 0b010) {
+              f_val = freg_file[rs2];
+              ls_success = store_word_fp(store_addr, store_data, f_val, wb_data);
+            }
+            if (!ls_success)
+            {
+              PC = excep_function(PC, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, cp);
+            }
+            else
+            {
+              memory.at((store_addr - DRAM_BASE) / 8) = wb_data;
+              load_data = memory.at((load_addr - DRAM_BASE) / 8);
+            }
+          }
+        } 
+        break;
+      case fmadd: {
+        float temp_result = (freg_file[rs1] * freg_file[rs2]) + freg_file[rs3];
+
+        roundingmode_change(rm,temp_result);
+
+        feclearexcept(FE_ALL_EXCEPT);
+        f_wb_data = (freg_file[rs1] * freg_file[rs2]) + freg_file[rs3];
+        setfflags();
+
+        freg_file[rd] = f_wb_data;
+
+        roundingmode_revert();
+
+        break;
+      }
+      case fmsub: {
+        float temp_result = (freg_file[rs1] * freg_file[rs2]) - freg_file[rs3];
+
+        roundingmode_change(rm,temp_result);  
+
+        feclearexcept(FE_ALL_EXCEPT);
+        f_wb_data = (freg_file[rs1] * freg_file[rs2]) - freg_file[rs3];
+        setfflags();
+
+        freg_file[rd] = f_wb_data;
+
+        roundingmode_revert();
+
+        break;
+      }
+      case fnmsub:{
+        float temp_result = - (freg_file[rs1] * freg_file[rs2]) + freg_file[rs3];
+
+        roundingmode_change(rm,temp_result);   
+
+        feclearexcept(FE_ALL_EXCEPT);
+        f_wb_data = - (freg_file[rs1] * freg_file[rs2]) + freg_file[rs3];
+        setfflags();
+
+        freg_file[rd] = f_wb_data;
+
+        roundingmode_revert();
+
+        break;
+      }
+      case fnmadd:{
+        float temp_result = - (freg_file[rs1] * freg_file[rs2]) - freg_file[rs3];
+
+        roundingmode_change(rm,temp_result);  
+
+        feclearexcept(FE_ALL_EXCEPT);
+        f_wb_data = - (freg_file[rs1] * freg_file[rs2]) - freg_file[rs3];
+        setfflags();
+
+        freg_file[rd] = f_wb_data;
+
+        roundingmode_revert();
+
+        break;
+      }
+      case fcomp:
+        switch (func7) {
+        case 0b0000000: { //FADD.S
+          float temp_result = freg_file[rs1] + freg_file[rs2];
+ 
+          roundingmode_change(rm,temp_result);
+
+          feclearexcept(FE_ALL_EXCEPT);
+ 		      f_wb_data = freg_file[rs1] + freg_file[rs2];
+          setfflags();
+
+          freg_file[rd] = f_wb_data;
+ 
+          roundingmode_revert();
+ 
+          break;
+        }
+		    case 0b0000100: { //FSUB.S
+          float temp_result = freg_file[rs1] - freg_file[rs2];
+
+          roundingmode_change(rm,temp_result); 
+
+          feclearexcept(FE_ALL_EXCEPT);
+		      f_wb_data = freg_file[rs1] - freg_file[rs2];
+          setfflags();
+          //To handle -NaN output
+          if (number_class(f_wb_data) == 9) {
+            int temp = 0x7FC00000;
+            float* tempPtr = reinterpret_cast<float*>(&temp);
+            f_wb_data = *tempPtr;
+          }
+
+          freg_file[rd] = f_wb_data;
+
+          roundingmode_revert();
+
+          break;
+        }
+		    case 0b0001000: { //FMUL.S
+          float temp_result = freg_file[rs1] * freg_file[rs2];
+
+          roundingmode_change(rm,temp_result);
+
+          feclearexcept(FE_ALL_EXCEPT);
+		      f_wb_data = freg_file[rs1] * freg_file[rs2];
+          setfflags();
+
+          freg_file[rd] = f_wb_data;
+
+          roundingmode_revert();
+
+          break;
+        }
+		    case 0b0001100: { //FDIV.S
+          float temp_result = freg_file[rs1] / freg_file[rs2];
+
+          roundingmode_change(rm,temp_result); 
+
+          feclearexcept(FE_ALL_EXCEPT);
+		      f_wb_data = freg_file[rs1] / freg_file[rs2];
+          setfflags();
+
+          freg_file[rd] = f_wb_data;
+
+          roundingmode_revert();
+
+          break;
+        }
+		    case 0b0101100: { //FSQRT.S
+          float temp_result = sqrt(freg_file[rs1]);
+
+          roundingmode_change(rm,temp_result); 
+
+          feclearexcept(FE_ALL_EXCEPT);
+		      f_wb_data = sqrt(freg_file[rs1]);
+          setfflags();
+          //To handle -NaN output
+          if (number_class(f_wb_data) == 9) {
+            int temp = 0x7FC00000;
+            float* tempPtr = reinterpret_cast<float*>(&temp);
+            f_wb_data = *tempPtr;
+          }
+          freg_file[rd] = f_wb_data;
+
+          roundingmode_revert();
+          
+          break;
+        }
+        case 0b0010000: //FSGNJ.S FSGNJN.S FSGNJX.S
+          switch (rm) {
+          case 0b000: //FSGNJ.S
+            if (freg_file[rs2] >= 0) {
+              if (freg_file[rs1] >= 0) {
+                f_wb_data = freg_file[rs1];
+              } else {
+                f_wb_data = (-1) * freg_file[rs1];
+              }
+            } else {
+              if (freg_file[rs1] >= 0) {
+                f_wb_data = (-1) * freg_file[rs1];
+              } else {
+                f_wb_data = freg_file[rs1];
+              }
+            }
+            break;
+          case 0b001: //FSGNJN.S
+		        if(freg_file[rs2] >= 0){
+			        if(freg_file[rs1] >= 0){
+			          f_wb_data=(-1)*freg_file[rs1];
+			        } else{
+			          f_wb_data=freg_file[rs1];
+			        }
+			      } else{
+			        if(freg_file[rs1] >= 0){
+			          f_wb_data=freg_file[rs1];
+			        } else{
+			          f_wb_data=(-1)*freg_file[rs1];
+			        }
+			      }
+            break;
+          case 0b010: //FSGNJX.S
+		        if(freg_file[rs2] >= 0){
+			        if(freg_file[rs1] >= 0){
+			          f_wb_data=freg_file[rs1];
+			        } else{
+			          f_wb_data=freg_file[rs1];
+			        }
+			      } else{
+			        if(freg_file[rs1] >= 0){
+			          f_wb_data=(-1)*freg_file[rs1];
+			        } else{
+			          f_wb_data=(-1)*freg_file[rs1];
+			        }
+			      }  
+            break;
+          default:
+            break;
+          }
+          freg_file[rd] = f_wb_data;
+          break;
+        case 0b0010100: //FMIN.S FMAX.S 
+          //Exception flags and results are handled by the min_max_f function
+		      if (func3 == 0b000) { //FMIN.S
+            f_wb_data = min_max_f(freg_file[rs1], freg_file[rs2], 0);
+		      } else if (func3 == 0b001) {//FMAX.S
+            f_wb_data = min_max_f(freg_file[rs1], freg_file[rs2], 1);
+          } 
+          freg_file[rd] = f_wb_data;
+          break;
+
+        case 0b1100000: //FCVT.W.S FCVTWU.S FCVT.L.S FCVT.LU.S
+          roundingmode_change(rm, freg_file[rs1]);
+
+          feclearexcept(FE_ALL_EXCEPT); 
+
+		      switch (rs2) {
+		        case 0b00000: //FCVT.W.S
+              if(!isnan(freg_file[rs1])){
+                if (freg_file[rs1]>=2147483647.0){
+                  wb_data=0x000000007fffffff;
+                  //Set invalid flag high
+                  temp = fcsr.read_fflags();
+	                fcsr.write_fflags(0b10000 | temp);
+                }
+                else{
+                  //no need to check for the lower limit of int32_t because it is handled accordingly
+                  wb_data= static_cast<uint64_t>(static_cast<int32_t>(freg_file[rs1]));
+                }
+              }
+              else{
+                wb_data=0x000000007fffffff;
+                //Set invalid flag high
+                temp = fcsr.read_fflags();
+	              fcsr.write_fflags(0b10000 | temp);
+              }
+              break;
+            case 0b00001: //FCVT.WU.S
+              if(!isnan(freg_file[rs1])){
+                if(isinf(freg_file[rs1]) && !signbit(freg_file[rs1])){
+                    //check whether positive inf, negative inf is manged below control flow
+                    wb_data=0xffffffffffffffff;
+                }
+                else if(freg_file[rs1]<=-1.0){
+                  wb_data=0;
+                  //Set invalid flag high
+                  temp = fcsr.read_fflags();
+	                fcsr.write_fflags(0b10000 | temp);
+                }
+                else if(freg_file[rs1]<0.0){
+                  freg_file[rs1]=round_to_int(rm,freg_file[rs1]);
+                  if(freg_file[rs1]==0.0){
+                    wb_data=0;
+                    //Set inexact flag high
+                    temp = fcsr.read_fflags();
+	                  fcsr.write_fflags(0b00001 | temp);
+                  }
+                  else{
+                    wb_data=0;
+                    //Set invaid flag high
+                    temp = fcsr.read_fflags();
+	                  fcsr.write_fflags(0b10000 | temp);
+                  }
+                }
+                else{
+                  wb_data= static_cast<uint64_t>(static_cast<uint32_t>(freg_file[rs1]));
+                  wb_data=sign_extend<uint64_t>(wb_data,32);
+                }
+              }
+              else{
+                //if it is NaN (positive or negative)
+                wb_data=0xffffffffffffffff;
+              }
+              break;
+            case 0b00010: //FCVT.L.S
+              if(!isnan(freg_file[rs1])){
+                if(isinf(freg_file[rs1]) && !signbit(freg_file[rs1])){
+                  wb_data=0x7fffffffffffffff;
+                }
+                else{
+			            wb_data= static_cast<uint64_t>(static_cast<int64_t>(freg_file[rs1]));
+                }
+              }
+              else{
+                wb_data=0x7fffffffffffffff;
+              }
+              break;
+            case 0b00011: //FCVT.LU.S
+			        if(!isnan(freg_file[rs1])){
+                if(isinf(freg_file[rs1]) && !signbit(freg_file[rs1])){
+                  wb_data=0xffffffffffffffff;
+                }
+                else if(freg_file[rs1]<=-1.0){
+                  wb_data=0;
+                  //Set invalid flag high
+                  temp = fcsr.read_fflags();
+	                fcsr.write_fflags(0b10000 | temp);
+                }
+                else if(freg_file[rs1]<0.0){
+                  freg_file[rs1]=round_to_int(rm,freg_file[rs1]);
+                  if(freg_file[rs1]==0.0){
+                    wb_data=0;
+                    //Set inexact flag high
+                    temp = fcsr.read_fflags();
+	                  fcsr.write_fflags(0b00001 | temp);
+                  }
+                  else{
+                    wb_data=0;
+                    //Set invaid flag high
+                    temp = fcsr.read_fflags();
+	                  fcsr.write_fflags(0b10000 | temp);
+                  }
+                }
+                else{
+                  wb_data= wb_data= static_cast<uint64_t>(freg_file[rs1]);
+                }
+              }
+              else{
+                wb_data=0xffffffffffffffff;
+              }
+              break;
+            default:		
+              break; 
+		      }
+          setfflags();
+          reg_file[rd] = wb_data;
+          roundingmode_revert();
+          break;
+        case 0b1010000: //FEQ.S FLT.S FLE.S  here rd is in integer register file
+
+          feclearexcept(FE_ALL_EXCEPT);
+
+          if (isnan(freg_file[rs1]) || isnan(freg_file[rs1])) {
+            wb_data = 0;
+            if (func3 == 0b000 || func3 == 0b001) {
+
+              //Set invalid operation flag high
+              temp = fcsr.read_fflags();
+	            fcsr.write_fflags(0b10000 | temp);
+
+            } else if (func3 == 0b010) {
+              if (number_class(freg_file[rs1]) == 8
+              || number_class(freg_file[rs2]) == 8) {
+
+                //Set invalid operation flag high
+                temp = fcsr.read_fflags();
+	              fcsr.write_fflags(0b10000 | temp);
+              }
+            } 
+          } else {
+            if (func3 == 0b000) {   //Less than or equal
+              wb_data =  (freg_file[rs1] <= freg_file[rs2]) ? 1 : 0;
+		        } else if (func3 == 0b001){  //Less than
+              wb_data =  (freg_file[rs1] < freg_file[rs2]) ? 1 : 0;
+		        } else if (func3 == 0b010){ //Equal
+              wb_data =  (freg_file[rs1] == freg_file[rs2]) ? 1 : 0;
+            } 
+          }
+          reg_file[rd] = wb_data;
+          break;
+        case 0b1101000: //FCVT.S.W FCVT.S.WU  FCVT.S.L FCVT.S.LU 
+          roundingmode_change(rm, reg_file[rs1]);
+
+          feclearexcept(FE_ALL_EXCEPT); 
+
+		      switch (rs2){
+		        case 0b00000: //FCVT.S.W
+              f_wb_data=signed_value32(reg_file[rs1]);
+              break;
+            case 0b00001: //FCVT.S.WU
+              f_wb_data=(reg_file[rs1] & MASK32);
+              break;
+            case 0b00010: //FCVT.S.L
+              f_wb_data=signed_value(reg_file[rs1]);
+              break;
+            case 0b00011: //FCVT.S.LU 
+              f_wb_data=reg_file[rs1];
+              break;
+            default:	
+              break;	
+		      }
+          setfflags();
+          freg_file[rd] = f_wb_data;
+          roundingmode_revert();
+          break;
+        case 0b1111000: {//FMV.W.X 
+          if (rm == 0b000) {
+            uint32_t temp_value = static_cast<uint32_t>(reg_file[rs1]);
+            f_wb_data = reinterpret_cast<float&>(temp_value);
+            freg_file[rd] = f_wb_data;
+          }
+		      break;  
+        }
+        case 0b1110000: //FCLASS & FMV.X.W
+          if (rm == 0b001) { //FCLASS
+            //The mask get written to an integer register
+            int shift_num = number_class(freg_file[rs1]);
+            if (shift_num != -1) {
+              wb_data = (0b1 << shift_num);
+            }
+            //Else invalid
+          } else if (rm == 0b000) { //FMV.X.W
+              int32_t temp = *reinterpret_cast<int32_t*>(&freg_file[rs1]);
+              wb_data = (static_cast<uint64_t>(signbit(freg_file[rs1]) ? 1 : 0) << 32) | temp;
+          }
+          reg_file[rd] = wb_data;
+          break;
+        }
+        default:
+          break;
       }
     }
   }
