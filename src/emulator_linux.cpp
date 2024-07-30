@@ -24,7 +24,7 @@ int main() {
   while (1) {
     // steps through one architectural change of pc
     emu.step();
-
+    emu.show_registers();
     // sets up interrupts to move to exception handler
     // in next step()
     emu.set_interrupts();
