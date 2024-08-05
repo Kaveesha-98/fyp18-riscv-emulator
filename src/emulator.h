@@ -27,7 +27,7 @@ public:
   emulator():harts(NUM_HARTS,memory) // this Constructor will construct each harts
   {
     for(uint8_t i=0; i<NUM_HARTS; i++)
-      harts[i].hart_init(memory);
+      harts[i].hart_init(memory,i);
   }
 
   void init(string image_name)

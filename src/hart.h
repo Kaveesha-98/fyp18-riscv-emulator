@@ -162,7 +162,7 @@ private:
   uint64_t scounteren = 0;
   uint64_t pmpcfg0 = 0;
   uint64_t pmpaddr0 = 0;
-  uint64_t mhartid = 0;
+  uint64_t mhartid;
   uint64_t mvendorid = 0;
   uint64_t marchid = 0;
   uint64_t mimpid = 0;
@@ -1033,15 +1033,15 @@ public:
 
   void show_state() {
     printf("pc: %016lx mstatus: %016lx mie: %016lx mcause: %016lx mepc: %016lx rx_ready: %d\n\
-    x00: %016lx x01: %016lx x02: %016lx x03: %016lx x04: %016lx x05: %016lx x06: %016lx x07: %016lx\n\
-    x08: %016lx x09: %016lx x10: %016lx x11: %016lx x12: %016lx x13: %016lx x14: %016lx x15: %016lx\n\
-    x16: %016lx x17: %016lx x18: %016lx x19: %016lx x20: %016lx x21: %016lx x22: %016lx x23: %016lx\n\
-    x24: %016lx x25: %016lx x26: %016lx x27: %016lx x28: %016lx x29: %016lx x30: %016lx x31: %016lx\n",
+    [%lu] x00: %016lx x01: %016lx x02: %016lx x03: %016lx x04: %016lx x05: %016lx x06: %016lx x07: %016lx\n\
+    [%lu] x08: %016lx x09: %016lx x10: %016lx x11: %016lx x12: %016lx x13: %016lx x14: %016lx x15: %016lx\n\
+    [%lu] x16: %016lx x17: %016lx x18: %016lx x19: %016lx x20: %016lx x21: %016lx x22: %016lx x23: %016lx\n\
+    [%lu] x24: %016lx x25: %016lx x26: %016lx x27: %016lx x28: %016lx x29: %016lx x30: %016lx x31: %016lx\n",
     PC, mstatus.read_reg(), mie.read_reg(), mcause.read_reg(), mepc, 1,
-    reg_file[0], reg_file[1], reg_file[2], reg_file[3], reg_file[4], reg_file[5], reg_file[6], reg_file[7], 
-    reg_file[8], reg_file[9], reg_file[10], reg_file[11], reg_file[12], reg_file[13], reg_file[14], reg_file[15],
-    reg_file[16], reg_file[17], reg_file[18], reg_file[19], reg_file[20], reg_file[21], reg_file[22], reg_file[23],
-    reg_file[24], reg_file[25], reg_file[26], reg_file[27], reg_file[28], reg_file[29], reg_file[30], reg_file[31]);
+    mhartid, reg_file[0], reg_file[1], reg_file[2], reg_file[3], reg_file[4], reg_file[5], reg_file[6], reg_file[7], 
+    mhartid, reg_file[8], reg_file[9], reg_file[10], reg_file[11], reg_file[12], reg_file[13], reg_file[14], reg_file[15],
+    mhartid, reg_file[16], reg_file[17], reg_file[18], reg_file[19], reg_file[20], reg_file[21], reg_file[22], reg_file[23],
+    mhartid, reg_file[24], reg_file[25], reg_file[26], reg_file[27], reg_file[28], reg_file[29], reg_file[30], reg_file[31]);
   }
 
   __uint64_t get_pc() { return PC; }
@@ -1072,7 +1072,7 @@ public:
    *  emulator memory
    * return 0 - to signal an error
    */
-  void hart_init(vector<uint64_t> &memory)
+  void hart_init(vector<uint64_t> &memory,uint8_t hid)
   {
     memory.at(MTIME_ADDR / 8) = 0;
     memory.at(MTIMECMP_ADDR / 8) = -1;
@@ -1080,6 +1080,7 @@ public:
     PC = DRAM_BASE;
     PC_phy = 0;
     instruction = 0;
+    mhartid = static_cast<uint64_t>(hid);
 
   }
 
@@ -1166,7 +1167,7 @@ public:
     else if (EBREAK)
     {
       EBREAK = false;
-      // PC = excep_function(PC,CAUSE_BREAKPOINT,CAUSE_BREAKPOINT,CAUSE_BREAKPOINT,cp);
+      PC = excep_function(PC,CAUSE_BREAKPOINT,CAUSE_BREAKPOINT,CAUSE_BREAKPOINT,cp);
     }
     else if (LD_ADDR_MISSALIG)
     {
@@ -1425,6 +1426,7 @@ public:
             default:
               break;
             }
+            // printf("load_addr: %lu  wb_data: %016lx ",rd,wb_data);
           }
           else
           {
@@ -1492,6 +1494,7 @@ public:
             else
             {
               memory.at((store_addr - DRAM_BASE) / 8) = wb_data;
+              // printf("store_addr: %016lx  wb_data: %016lx ",store_addr,wb_data);
             }
           }
           else
