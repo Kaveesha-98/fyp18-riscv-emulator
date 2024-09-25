@@ -13,8 +13,8 @@ PROGS=prog prog.bin prog.lst
 
 all:: $(PROGS)
 
-# prog: crt0.o main.o hartid.o
-prog: crt1.o
+prog: crt0.o main.o hartid.o
+# prog: crt1.o
 	$(LINK.c) -o $@ $^ $(LDLIBS)
 	$(SIZE) -A -x $@
 

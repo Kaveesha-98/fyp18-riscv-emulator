@@ -1,8 +1,15 @@
+### for mt1 use the following
 
 ARCH=riscv64-unknown-elf
-GNU_DIR=/media/hv/Data/OOO_Processor/riscv
+GNU_DIR=/media/hv/D1/OOO_Processor/riscv
 GNU_BIN=$(GNU_DIR)/bin
+LDFLAGS+=-nostdlib
 
+### for mt2 use the following
+
+# ARCH=riscv64-unknown-linux-gnu
+# GNU_DIR=/media/hv/Data/OOO_Processor/riscv_linux_gcc/riscv
+GNU_BIN=$(GNU_DIR)/bin
 
 CC=$(GNU_BIN)/$(ARCH)-gcc
 CXX=$(GNU_BIN)/$(ARCH)-g++
@@ -15,18 +22,16 @@ AR=$(GNU_BIN)/$(ARCH)-ar
 RANLIB=$(GNU_BIN)/$(ARCH)-ranlib
 
 
-CFLAGS+=-ffreestanding 
+CFLAGS+=-ffreestanding
 CFLAGS+=-fno-pic
-# CFLAGS+=-march=rv64i_zicsr -mabi=lp64
 CFLAGS+=-march=rv64i_zicsr -mabi=lp64
+# CFLAGS+=-march=rv64imad_zicsr -mabi=lp64d
 
 
-LDFLAGS+=-nostdlib
-LDFLAGS+=-Wl,-Ttext=0x0
+# LDFLAGS+=-Wl,-Ttext=0x0
 
 # see: https://github.com/riscv/riscv-gcc/issues/120
-#LDFLAGS+=-Wl,--no-relax
-
+# LDFLAGS+=-Wl,--no-relax
 
 
 ASFLAGS+=$(CFLAGS)

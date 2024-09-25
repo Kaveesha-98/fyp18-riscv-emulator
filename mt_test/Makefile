@@ -1,4 +1,4 @@
-SUBDIRS=mt1
+SUBDIRS=mt2
 
 TOP=.
 
