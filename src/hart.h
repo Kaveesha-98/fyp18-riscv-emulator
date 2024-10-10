@@ -93,7 +93,7 @@ private:
   bool INS_ACC_FAULT = false; // instruction access fault
   bool LD_ACC_FAULT = false;  // load access fault
 
-  int64_t DRAM_BASE = 0x10000000; /// **** this has to change inorder to write to seperate memory location
+  uint64_t DRAM_BASE = 0x10000000; /// **** this has to change inorder to write to seperate memory location
 
   string line;
   uint64_t temp;
@@ -1207,6 +1207,7 @@ public:
   {
     reg_file[0] = 0;
 
+
     gettimeofday(&tv, NULL);
     time_in_micros = 1000000 * tv.tv_sec + tv.tv_usec;
     mtime = (uint64_t)(time_in_micros * 10);
@@ -1338,6 +1339,8 @@ public:
                   load_data = 0;
                   break;
                 }
+
+                printf("load_address: %016lx, data: %lu , core: %lu \n", load_addr, load_data , mhartid);
               }
               else
               {
@@ -1511,6 +1514,8 @@ public:
               default:
                 break;
               }
+
+              printf("store_address: %016lx, data: %lu , core: %lu \n", store_addr, reg_file[rs2], mhartid );
             }
             else
             {

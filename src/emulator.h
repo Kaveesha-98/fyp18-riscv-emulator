@@ -6,7 +6,7 @@
  */
 
 #define MEM_SIZE 28
-#define NUM_HARTS 2
+#define NUM_HARTS 1
 
 /* EMULATOR INCLUDE HEADER FILES */
 
@@ -72,7 +72,7 @@ public:
     for (auto &r : harts)
       r.hart_step(memory);
 
-    // cout<<"one"<<endl;
+
   }
 
   void set_interrupts()

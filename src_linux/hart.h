@@ -74,6 +74,7 @@ void disable_raw_mode()
  * this functionality.
  */
 
+
 class hart
 {
 private:
@@ -93,7 +94,7 @@ private:
   bool INS_ACC_FAULT = false; // instruction access fault
   bool LD_ACC_FAULT = false;  // load access fault
 
-  // int64_t DRAM_BASE = 0x10000000; /// **** this has to change inorder to write to seperate memory location
+  uint64_t DRAM_BASE = 0x10000000; 
 
   string line;
   uint64_t temp;
@@ -141,11 +142,7 @@ private:
 
   uint64_t ret_data = 0;
 
-  
-  // vector<uint64_t> reg_file = vector<uint64_t>(32);          // register file
 
-  // *** edit the init fuction such that it sperate from emulators functionality i.e two times initializing mem
-  // *** remove meomory and make it shared
 
   uint64_t PC;
   uint64_t PC_phy;
@@ -171,7 +168,6 @@ private:
   uint64_t time_in_micros;
 
   uint64_t &mtime;
-  uint64_t &mtimecmp;
 
   struct satp_t
   {
@@ -546,7 +542,7 @@ private:
       pmpaddr0 = val;
       return true;
     case MHARTID:
-      mhartid = val;
+      // mhartid = val;
       return true;
     case MVENDORID:
       mvendorid = val;
@@ -1017,14 +1013,9 @@ private:
 public:
 
   //Constructor
-  hart(vector<uint64_t> &memory):mtime(memory.at(MTIME_ADDR / 8)),mtimecmp(memory.at(MTIMECMP_ADDR / 8))
+  hart(vector<uint64_t> &memory):mtime(memory.at(MTIME_ADDR / 8))
   {
-      // memory.at(MTIME_ADDR / 8) = 0;
-      // memory.at(MTIMECMP_ADDR / 8) = -1;
 
-      // PC = DRAM_BASE;
-      // PC_phy = 0;
-      // instruction = 0;
   }
   // uint64_t get_semphore_status() { return (((amo_reserve_addr64&0x00000000FFFFFFF8UL) | amo_reserve_valid64) << 32) | ((amo_reserve_addr&0x00000000FFFFFFFCUL) | amo_reserve_valid); }
   uint64_t get_mstatus() { return mstatus.read_reg(); }
@@ -1072,6 +1063,13 @@ public:
    *  emulator memory
    * return 0 - to signal an error
    */
+  // void writeData(ofstream &outfile)
+  // {
+  //   outfile << "Data for hart " << endl;
+  // }
+
+
+
   void hart_init(vector<uint64_t> &memory,uint8_t hid)
   {
     memory.at(MTIME_ADDR / 8) = 0;
@@ -1111,9 +1109,10 @@ public:
    * Sets up interrupts to execute instructions next
    * i.e.: sets up *TIP, *SIP, *EIP
    */
-  void hart_set_interrupts()
+  void hart_set_interrupts(uint64_t *mtimecmp, uint32_t *msip)
   {
-    mip.MTIP = (mtime >= mtimecmp);
+    mip.MTIP = (mtime >= mtimecmp[mhartid]);
+    mip.MSIP = static_cast<uint8_t>(msip[mhartid]);
 
     if (signed_value(PC) < 0)
     {
@@ -1203,15 +1202,17 @@ public:
    * exception/interrupt handler after a synchronous/asynchronous
    * exception
    */
-  void hart_step(vector<uint64_t> &memory)
+  void hart_step(vector<uint64_t> &memory,uint64_t *mtimecmp, uint32_t *msip)
   {
     reg_file[0] = 0;
+
 
     gettimeofday(&tv, NULL);
     time_in_micros = 1000000 * tv.tv_sec + tv.tv_usec;
     mtime = (uint64_t)(time_in_micros * 10);
 
     instruction = hart_fetch_instruction(PC,memory);
+    
 
     //--------------Debugging---------------------
     //To check if all tests passed
@@ -1332,12 +1333,23 @@ public:
                   load_data = mtime;
                   break;
                 case 0x4000: // timecmp
-                  load_data = mtimecmp;
+                  load_data = mtimecmp[0];
+                  break;
+                case 0x4008: // timecmp
+                  load_data = mtimecmp[1];
+                  break;
+                case 0x0000:
+                  load_data = msip[0];
+                  break;
+                case 0x0004:
+                  load_data = msip[1];
                   break;
                 default:
                   load_data = 0;
                   break;
                 }
+
+                // printf("load_address: %016lx, data: %lu , core: %lu \n", load_addr, load_data , mhartid);
               }
               else
               {
@@ -1505,12 +1517,26 @@ public:
               switch (offset)
               {
               case 0x4000:
-                mtimecmp = reg_file[rs2];
-                mip.STIP = 0;
+                mtimecmp[0] = reg_file[rs2];
+                // mip.STIP = 0;
+                break;
+              case 0x4008:
+                mtimecmp[1] = reg_file[rs2];
+                // mip.STIP = 0;
+                break;
+              case 0x0000:
+                msip[0] = reg_file[rs2];
+                // mip.STIP = 0;
+                break;
+              case 0x0004:
+                msip[1] = reg_file[rs2];
+                // mip.STIP = 0;
                 break;
               default:
                 break;
               }
+
+              // printf("store_address: %016lx, data: %lu , core: %lu \n", store_addr, reg_file[rs2], mhartid );
             }
             else
             {
@@ -2292,4 +2318,6 @@ public:
       }
     }
   }
+
+
 };

@@ -12,6 +12,8 @@
 
 #include <vector>
 #include <iostream>
+#include <stdio.h>
+#include <stdint.h>
 #include "hart.h"
 
 using namespace std;
@@ -20,7 +22,8 @@ class emulator
 {
 private:
 vector<uint64_t> memory = vector<uint64_t>(1 << MEM_SIZE); // main memory
-vector<uint64_t> rom;
+uint64_t mtimecmp[2];
+uint32_t msip[2];
 vector<hart> harts;
 
 public:
@@ -31,28 +34,8 @@ public:
       harts[i].hart_init(memory,i);
   }
 
-  void set_rom()
-  {
-      const int rom_size = 8;
-
-      int64_t start_pc = DRAM_BASE;
-
-      rom = {  // Initialize the reset vector
-          0x1000b5b7,                                  // auipc  t0,0x0
-          0x0b05859b,                                 // addi   a1, t0, &dtb
-          0xf1402573,                                 // csrr   a0, mhartid
-          0x100002b7,                                // ld     t0,24(t0)
-          0x00028067,                                // jr     t0
-          // 0,
-          // (uint64_t)(start_pc),
-          // (uint64_t)(start_pc)
-      };
-  }
-
-
   void init(string image_name)
   {
-
     ifstream infile(image_name, ios::binary);
     printf("stepping\n");
     if (!infile.good())
@@ -74,19 +57,6 @@ public:
     infile.close();
     unsigned long pointer_end = (fileSize / 8) - 1;
     unsigned long long_jump = 0;
-
-    set_rom();
-
-    //boot rom
-    for (const uint64_t rom_data : rom)
-    { 
-      memory.at(long_jump) = (static_cast<unsigned long>(rom_data));
-      // printf("%lx\n", static_cast<unsigned long>(address));
-      long_jump++ ;
-    }
-
-    long_jump=8;
-
     for (const uint64_t data : byte_memory)
     {
       memory.at(long_jump) = (static_cast<unsigned long>(data));
@@ -103,15 +73,14 @@ public:
   void step()
   {
     for (auto &r : harts)
-      r.hart_step(memory);
+      r.hart_step(memory,mtimecmp,msip);
 
-    // cout<<"one"<<endl;
   }
 
   void set_interrupts()
   {
     for (auto &r : harts)
-      r.hart_set_interrupts();
+      r.hart_set_interrupts(mtimecmp,msip);
   }
 
   void show_registers()

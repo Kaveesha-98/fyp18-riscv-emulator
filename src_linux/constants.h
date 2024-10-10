@@ -1,5 +1,3 @@
-#include <stdio.h>
-
 #define MASK32 0xFFFFFFFFllu
 #define MASK64 0xFFFFFFFFFFFFFFFFllu
 
@@ -33,8 +31,6 @@
 
 #define CLINT_BASE 0x2000000
 #define CLINT_SIZE 0x00c0000
-
-int64_t DRAM_BASE = 0x10000000;
 
 #define MTIME_ADDR (CLINT_BASE+0xbff8)
 #define MTIMECMP_ADDR (CLINT_BASE+0x4000)
