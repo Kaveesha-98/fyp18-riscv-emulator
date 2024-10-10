@@ -1,0 +1,19 @@
+
+prog:     file format elf64-littleriscv
+
+
+Disassembly of section .text:
+
+00000000000100b0 <_start>:
+   100b0:	100002b7          	lui	x5,0x10000
+   100b4:	00000317          	auipc	x6,0x0
+   100b8:	02c30313          	addi	x6,x6,44 # 100e0 <hello>
+   100bc:	00030383          	lb	x7,0(x6)
+   100c0:	00700a63          	beq	x0,x7,100d4 <_start+0x24>
+   100c4:	00728023          	sb	x7,0(x5) # 10000000 <hello+0xffeff20>
+   100c8:	00130313          	addi	x6,x6,1
+   100cc:	00030383          	lb	x7,0(x6)
+   100d0:	fe701ae3          	bne	x0,x7,100c4 <_start+0x14>
+   100d4:	30401073          	csrrw	x0,mie,x0
+   100d8:	10500073          	wfi
+   100dc:	ffdff06f          	jal	x0,100d8 <_start+0x28>

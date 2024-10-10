@@ -1,0 +1,5 @@
+use the following command to build and run the emulator
+
+
+g++  -O3 emulator_linux.cpp -o emulator && ./emulator
+
