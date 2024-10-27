@@ -1436,7 +1436,12 @@ public:
     __uint32_t instruction = fetch_instruction(PC);
     __uint64_t load_addr = reg_file[(instruction >> 15) & 0x1f] + (((__uint64_t)((__int32_t) instruction)) >> 20);
     if ((instruction & 0x7f) != 0b0000011) { return 0; } 
-    if ((load_addr >= DRAM_BASE) & (load_addr <= (DRAM_BASE + 0x9000000))) { return 0; } else { return 1; }
+    if ((load_addr >= DRAM_BASE) && (load_addr <= (DRAM_BASE + 0x9000000))) { return 0; } else { return 1; }
+  }
+
+  __uint32_t read_address() {
+    __uint32_t instruction = fetch_instruction(PC);
+    return reg_file[(instruction >> 15) & 0x1f] + (((__uint64_t)((__int32_t) instruction)) >> 20);
   }
 
   __uint32_t get_instruction() {
@@ -1617,10 +1622,25 @@ public:
   #else
   // this sets up timer interrupt
   // returns a positive integer [error code] if its not possible to set up interrupt
-  int set_interrupts() {
+  int set_interrupts(__uint64_t peripheral_read = 1, __uint64_t mepc = 0) {
     // emulator-simulator state semantic mis matches
     // look at the pc definitions when comparing state
-    step();
+    // step();
+    if (is_peripheral_read()) {
+      // outFile << "peripheral read after interrupt at: " << hex << get_pc();
+      __uint32_t p_instruction = get_instruction();
+      step();
+      set_register_with_value((p_instruction>>7)&0x1f, peripheral_read);
+    } else{
+      step();
+    }
+    while (
+      ((get_instruction() & 0x0000007f) == 0x73) && 
+      (get_instruction() & 0x00007000) && (get_pc() != mepc)
+    )
+    {
+      step();
+    }
 
     // mip.MTIP = 1; //(mtime >= mtimecmp);
     if (!mie.MTIE || !mstatus.mie) { return 1; }
