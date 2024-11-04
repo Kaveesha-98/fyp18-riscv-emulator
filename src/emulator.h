@@ -107,6 +107,9 @@ private:
 
   int64_t DRAM_BASE = 0x10000000;
 
+	static_assert(std::numeric_limits<double>::is_iec559,
+									"This code requires IEEE-754 doubles");
+
   string line;
   uint64_t temp;
   uint64_t i = 0;
@@ -3136,59 +3139,50 @@ public:
 
           feclearexcept(FE_ALL_EXCEPT);
 
-          if (isnan(freg_file[rs1]) || isnan(freg_file[rs1])) {
-            wb_data = 0;
-            if (func3 == 0b000 || func3 == 0b001) {
+					// Setting flags
+					switch (func3) {
+					case 0b010:
+						if (number_class(freg_file[rs1]) != 8 && number_class(freg_file[rs2]) != 8) { break; }
+					default: // func3 == 0b000 and func3 == 0b001
+						if (!isnan(freg_file[rs1]) && !isnan(freg_file[rs2])) { break; }
+						fcsr.write_fflags(0b10000 | fcsr.read_fflags()); //Set invalid operation flag high
+					}
 
-              //Set invalid operation flag high
-              temp = fcsr.read_fflags();
-	            fcsr.write_fflags(0b10000 | temp);
+					// execution
+					switch (func3) {
+					case 0b000: wb_data = (freg_file[rs1] <= freg_file[rs2]) ? 1 : 0; break;
+					case 0b001: wb_data = (freg_file[rs1] < freg_file[rs2]) ? 1 : 0; break;
+					case 0b010: wb_data = (freg_file[rs1] == freg_file[rs2]) ? 1 : 0; break;
+					default: break; // For illegal instructions
+					}
+					
+					reg_file[rd] = wb_data;
+					break;
+				case 0b1101000: //FCVT.S.W FCVT.S.WU  FCVT.S.L FCVT.S.LU 
+					roundingmode_change(rm, reg_file[rs1]);
 
-            } else if (func3 == 0b010) {
-              if (number_class(freg_file[rs1]) == 8
-              || number_class(freg_file[rs2]) == 8) {
+					feclearexcept(FE_ALL_EXCEPT); 
 
-                //Set invalid operation flag high
-                temp = fcsr.read_fflags();
-	              fcsr.write_fflags(0b10000 | temp);
-              }
-            } 
-          } else {
-            if (func3 == 0b000) {   //Less than or equal
-              wb_data =  (freg_file[rs1] <= freg_file[rs2]) ? 1 : 0;
-		        } else if (func3 == 0b001){  //Less than
-              wb_data =  (freg_file[rs1] < freg_file[rs2]) ? 1 : 0;
-		        } else if (func3 == 0b010){ //Equal
-              wb_data =  (freg_file[rs1] == freg_file[rs2]) ? 1 : 0;
-            } 
-          }
-          reg_file[rd] = wb_data;
-          break;
-        case 0b1101000: //FCVT.S.W FCVT.S.WU  FCVT.S.L FCVT.S.LU 
-          roundingmode_change(rm, reg_file[rs1]);
-
-          feclearexcept(FE_ALL_EXCEPT); 
-
-		      switch (rs2){
-		        case 0b00000: //FCVT.S.W
-              f_wb_data=signed_value32(reg_file[rs1]);
-              break;
-            case 0b00001: //FCVT.S.WU
-              f_wb_data=(reg_file[rs1] & MASK32);
-              break;
-            case 0b00010: //FCVT.S.L
-              f_wb_data=signed_value(reg_file[rs1]);
-              break;
-            case 0b00011: //FCVT.S.LU 
-              f_wb_data=reg_file[rs1];
-              break;
-            default:	
-              break;	
-		      }
-          setfflags();
-          freg_file[rd] = f_wb_data;
-          roundingmode_revert();
-          break;
+					switch (rs2){
+						case 0b00000: //FCVT.S.W
+							f_wb_data=signed_value32(reg_file[rs1]);
+							break;
+						case 0b00001: //FCVT.S.WU
+							f_wb_data=(reg_file[rs1] & MASK32);
+							break;
+						case 0b00010: //FCVT.S.L
+							f_wb_data=signed_value(reg_file[rs1]);
+							break;
+						case 0b00011: //FCVT.S.LU 
+							f_wb_data=reg_file[rs1];
+							break;
+						default:	
+							break;	
+					}
+					setfflags();
+					freg_file[rd] = f_wb_data;
+					roundingmode_revert();
+					break;
 				case 0b1111000: {//FMV.W.X 
 					f_wb_data = *reinterpret_cast<float *>(&reg_file[rs1]); 
 					freg_file[rd] = f_wb_data;
