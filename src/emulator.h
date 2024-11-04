@@ -3197,24 +3197,28 @@ public:
           }
 		      break;  
         }
-        case 0b1110000: //FCLASS & FMV.X.W
-          if (rm == 0b001) { //FCLASS
-            //The mask get written to an integer register
-            int shift_num = number_class(freg_file[rs1]);
-            if (shift_num != -1) {
-              wb_data = (0b1 << shift_num);
-            }
-            //Else invalid
-          } else if (rm == 0b000) { //FMV.X.W
-              int32_t temp = *reinterpret_cast<int32_t*>(&freg_file[rs1]);
-              wb_data = (static_cast<uint64_t>(signbit(freg_file[rs1]) ? 1 : 0) << 32) | temp;
-          }
-          reg_file[rd] = wb_data;
-          break;
-        }
-        default:
-          break;
-      }
-    }
-  }
+				case 0b1110000: //FCLASS & FMV.X.W
+					switch (rm) {
+					case 0b001: // FCLASS
+						//The mask get written to an integer register
+						wb_data = (0b1 << (number_class(freg_file[rs1])));
+						// number_class(freg_file[rs1]) should not return -1
+						break;
+
+					case 0b000: // FMV.X.W
+						wb_data = static_cast<uint64_t>(*reinterpret_cast<int32_t*>(&freg_file[rs1]));
+						break;
+					
+					default:
+						// Illegal instruction
+						break;
+					}
+					reg_file[rd] = wb_data;
+					break;
+				}
+				default:
+					break;
+			}
+		}
+	}
 };
