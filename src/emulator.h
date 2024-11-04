@@ -27,6 +27,8 @@
 
 #pragma STDC FENV_ACCESS ON
 
+#define debug(fmt,...) printf(fmt, ##__VA_ARGS__)
+
 using namespace std;
 
 // disables echo for terminal
@@ -1467,6 +1469,7 @@ public:
     printf("stepping\n");
     if (!infile.good())
     {
+			fprintf(stderr, "Could not open image file! \n");
       exit(0);
     }
 
@@ -1532,7 +1535,8 @@ public:
    */
   __uint64_t memory_read(__uint64_t address)
   {
-    return 0UL;
+		// TODO add assertions to make sure no out of bounds access
+    return memory.at((address - DRAM_BASE) / 8);;
   }
 
   /**
@@ -1669,16 +1673,16 @@ public:
 
     //--------------Debugging---------------------
     //To check if all tests passed
-    if (instruction == 0x00000073 && reg_file[3] == 0x1 && reg_file[17] == 0x5d && reg_file[10] == 0x0) {
-      std::cout<<"All tests passed"<<endl;
-      disable_raw_mode();
-      exit(0);
-    }
-    if (instruction == 0x00018513) {
-      std::cout<<"Tests failed"<<endl;
-      disable_raw_mode();
-      exit(1);
-    }
+    // if (instruction == 0x00000073 && reg_file[3] == 0x1 && reg_file[17] == 0x5d && reg_file[10] == 0x0) {
+    //   std::cout<<"All tests passed"<<endl;
+    //   disable_raw_mode();
+    //   exit(0);
+    // }
+    // if (instruction == 0x00018513) {
+    //   std::cout<<"Tests failed"<<endl;
+    //   disable_raw_mode();
+    //   exit(1);
+    // }
     //--------------Debugging---------------------
 
     if (!INS_ADDR_MISSALIG)
@@ -1794,6 +1798,7 @@ public:
                   load_data = mtimecmp;
                   break;
                 default:
+									debug("[WARNING-EMULATOR] undefined load address load_addr: 0x%08lx\n", load_addr); 
                   load_data = 0;
                   break;
                 }
@@ -1801,6 +1806,7 @@ public:
               else
               {
                 load_data = 0x1000;
+								debug("[WARNING-EMULATOR] undefined load address load_addr: 0x%08lx\n", load_addr); 
               }
             }
             switch (func3)
@@ -1965,7 +1971,11 @@ public:
                 mtimecmp = reg_file[rs2];
                 mip.STIP = 0;
                 break;
+							case 0x0000:
+								// This is the MSIP, which doesn't do anything yet
+								break;
               default:
+								debug("[WARNING-EMULATOR] undefined store address store_addr: 0x%08lx\n", store_addr); 
                 break;
               }
             }
@@ -1974,7 +1984,9 @@ public:
               if (store_addr - DRAM_BASE == FIFO_ADDR_TX)
               {
                 cout << (char)reg_file[rs2] << flush;
-              }
+              } else {
+								debug("[WARNING-EMULATOR] undefined store address store_addr: 0x%08lx\n", store_addr); 
+							}
             }
           }
         }

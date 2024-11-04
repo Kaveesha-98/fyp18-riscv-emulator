@@ -16,9 +16,9 @@ void signal_callback_handler(int signum) {
   exit(signum);
 }
 
-int main() {
+int main(int argc, char* argv[]) {
   // initaite registers and memory
-  emu.init("Image");
+  emu.init(argv[1]);
 
   enable_raw_mode();
   while (1) {
