@@ -14,7 +14,8 @@
 #include <string>
 #include <fstream>
 #include <stdio.h>
-#include <bits/stdc++.h>
+//#include <bits/stdc++.h>
+#include <iostream>
 #include <sys/time.h>
 #include <fcntl.h>
 #include <iostream>
@@ -847,14 +848,14 @@ private:
     return result;
   }
 
-  int hex_to_dec(const int64_t &hex_num)
+  /* int hex_to_dec(const int64_t &hex_num)
   {
     stringstream stream;
     int y;
     stream << hex_num;
     stream >> hex >> y;
     return y;
-  }
+  } */
 
   void print_reg_file(const vector<uint64_t> &reg_file)
   {
@@ -983,23 +984,23 @@ private:
     //? const uint8_t &RM is this the way to get the rounding mode?
     switch (RM) {
       case (0b000):
-        std::fesetround(FE_TONEAREST);
+        fesetround(FE_TONEAREST);
         break;
       case (0b001):
-        std::fesetround(FE_TOWARDZERO);
+        fesetround(FE_TOWARDZERO);
         break;
       case (0b010):
-        std::fesetround(FE_DOWNWARD);
+        fesetround(FE_DOWNWARD);
         break;
       case (0b011):
-        std::fesetround(FE_UPWARD);
+        fesetround(FE_UPWARD);
         break;
       case (0b100):
         if (std::signbit(result_temp)) {
-          std::fesetround(FE_DOWNWARD);
+          fesetround(FE_DOWNWARD);
           break;
         } else {
-          std::fesetround(FE_UPWARD);
+          fesetround(FE_UPWARD);
           break;
         }
         break;
@@ -1024,7 +1025,7 @@ private:
 
   void roundingmode_revert(){
     //Default rounding mode
-    std::fesetround(FE_TONEAREST);
+    fesetround(FE_TONEAREST);
   }
 
   //* Function is used to unary rounding
@@ -2002,7 +2003,7 @@ public:
         switch (func3)
         {
         case 0b000:
-          wb_data = reg_file[rs1] + signed_value(sign_extend<uint64_t>(imm11_0, 12)); // ADDI
+          wb_data = reg_file[rs1] +  signed_value(sign_extend<uint64_t>(imm11_0, 12)); // ADDI
           break;
         case 0b010:
           wb_data = (signed_value(reg_file[rs1]) < signed_value(sign_extend<uint64_t>(imm11_0, 12))) ? 1 : 0; // SLTI
