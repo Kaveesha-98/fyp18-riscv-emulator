@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
 	for (int32_t test_no = 1; test_no < argc; test_no++) {
 		// initiate memory
 		emu.init(argv[test_no]);
-		printf("Running riscv-test image: %s \t result: ", argv[test_no]);
+		printf("Running riscv-test image: %-50s \t result: ", argv[test_no]);
 		for (uint32_t i = 0; i < TICK_LIMIT; i++) {
 			// steps through one architectural change of pc
 			emu.step();
