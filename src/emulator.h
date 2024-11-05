@@ -3192,21 +3192,11 @@ public:
 				}
 				case 0b1110000: //FCLASS & FMV.X.W
 					switch (rm) {
-					case 0b001: // FCLASS
-						//The mask get written to an integer register
-						wb_data = (0b1 << (number_class(freg_file[rs1])));
-						// number_class(freg_file[rs1]) should not return -1
-						break;
-
-					case 0b000: // FMV.X.W
-						wb_data = static_cast<uint64_t>(*reinterpret_cast<int32_t*>(&freg_file[rs1]));
-						break;
-					
-					default:
-						// Illegal instruction
-						break;
+					case 0b001: wb_data = (0b1 << (number_class(freg_file[rs1]))); break; // FCLASS // number_class(freg_file[rs1]) should not return -1
+					case 0b000: wb_data = static_cast<uint64_t>(*reinterpret_cast<int32_t*>(&freg_file[rs1])); break; // FMV.X.W
+					default: break; // Illegal instruction
 					}
-					reg_file[rd] = wb_data;
+					reg_file[rd] = wb_data; // TODO: Should not happen in case of illegal instruction
 					break;
 				}
 				default:
