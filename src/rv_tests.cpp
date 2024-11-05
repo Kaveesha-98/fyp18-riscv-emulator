@@ -41,6 +41,7 @@ int main(int argc, char* argv[]) {
 		printf("failed due to timed out \n");
 		return 2;
 test_end:
+		;
 	};
 	return 0;
 }
