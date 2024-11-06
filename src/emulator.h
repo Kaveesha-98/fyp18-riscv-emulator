@@ -3136,19 +3136,19 @@ public:
           reg_file[rd] = wb_data;
           roundingmode_revert();
           break;
-        case 0b1010000: //FEQ.S FLT.S FLE.S  here rd is in integer register file
+				case 0b1010000: //FEQ.S FLT.S FLE.S  here rd is in integer register file
 
-          feclearexcept(FE_ALL_EXCEPT);
+					feclearexcept(FE_ALL_EXCEPT);
 
 					// Setting flags
 					switch (func3) {
 					case 0b010:
 						if (number_class(freg_file[rs1]) != 8 && number_class(freg_file[rs2]) != 8) { break; }
-					default: // func3 == 0b000 and func3 == 0b001
+					case 0b000:
+					case 0b001: // func3 == 0b000 and func3 == 0b001
 						if (!isnan(freg_file[rs1]) && !isnan(freg_file[rs2])) { break; }
 						fcsr.write_fflags(0b10000 | fcsr.read_fflags()); //Set invalid operation flag high
 					}
-
 					// execution
 					switch (func3) {
 					case 0b000: wb_data = (freg_file[rs1] <= freg_file[rs2]) ? 1 : 0; break;
