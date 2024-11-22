@@ -28,7 +28,9 @@
 
 #pragma STDC FENV_ACCESS ON
 
-#define debug(fmt,...) printf(fmt, ##__VA_ARGS__)
+// #define debug(fmt,...) printf(fmt, ##__VA_ARGS__)
+#define debug(fmt,...)
+#define FLOAT_TO_32BITS(x) (*reinterpret_cast<uint32_t*>(&x))
 
 using namespace std;
 
@@ -1674,6 +1676,9 @@ public:
     mtime = (uint64_t)(time_in_micros * 10);
 
     instruction = fetch_instruction(PC);
+		// printf("pc: %016lx fcsr: %016lx\n", PC, fcsr.read_fflags());
+		// show_state();
+		//printf("wbdata: %08x\n", static_cast<int32_t>(freg_file[0]));
 
     //--------------Debugging---------------------
     //To check if all tests passed
@@ -3019,123 +3024,41 @@ public:
           freg_file[rd] = f_wb_data;
           break;
 
-        case 0b1100000: //FCVT.W.S FCVTWU.S FCVT.L.S FCVT.LU.S
-          roundingmode_change(rm, freg_file[rs1]);
+				case 0b1100000: //FCVT.W.S FCVTWU.S FCVT.L.S FCVT.LU.S
+					roundingmode_change(rm, freg_file[rs1]);
 
-          feclearexcept(FE_ALL_EXCEPT); 
+					feclearexcept(FE_ALL_EXCEPT); 
 
-		      switch (rs2) {
-		        case 0b00000: //FCVT.W.S
-              if(!isnan(freg_file[rs1])){
-                if (freg_file[rs1]>=2147483647.0){
-                  wb_data=0x000000007fffffff;
-                  //Set invalid flag high
-                  temp = fcsr.read_fflags();
-	                fcsr.write_fflags(0b10000 | temp);
-                }
-                else{
-                  //no need to check for the lower limit of int32_t because it is handled accordingly
-                  wb_data= static_cast<uint64_t>(static_cast<int32_t>(freg_file[rs1]));
-                }
-              }
-              else{
-                wb_data=0x000000007fffffff;
-                //Set invalid flag high
-                temp = fcsr.read_fflags();
-	              fcsr.write_fflags(0b10000 | temp);
-              }
-              break;
-            case 0b00001: //FCVT.WU.S
-              if(!isnan(freg_file[rs1])){
-                if(isinf(freg_file[rs1]) && !signbit(freg_file[rs1])){
-                    //check whether positive inf, negative inf is manged below control flow
-                    wb_data=0xffffffffffffffff;
-                }
-                else if(freg_file[rs1]<=-1.0){
-                  wb_data=0;
-                  //Set invalid flag high
-                  temp = fcsr.read_fflags();
-	                fcsr.write_fflags(0b10000 | temp);
-                }
-                else if(freg_file[rs1]<0.0){
-                  freg_file[rs1]=round_to_int(rm,freg_file[rs1]);
-                  if(freg_file[rs1]==0.0){
-                    wb_data=0;
-                    //Set inexact flag high
-                    temp = fcsr.read_fflags();
-	                  fcsr.write_fflags(0b00001 | temp);
-                  }
-                  else{
-                    wb_data=0;
-                    //Set invaid flag high
-                    temp = fcsr.read_fflags();
-	                  fcsr.write_fflags(0b10000 | temp);
-                  }
-                }
-                else{
-                  wb_data= static_cast<uint64_t>(static_cast<uint32_t>(freg_file[rs1]));
-                  wb_data=sign_extend<uint64_t>(wb_data,32);
-                }
-              }
-              else{
-                //if it is NaN (positive or negative)
-                wb_data=0xffffffffffffffff;
-              }
-              break;
-            case 0b00010: //FCVT.L.S
-              if(!isnan(freg_file[rs1])){
-                if(isinf(freg_file[rs1]) && !signbit(freg_file[rs1])){
-                  wb_data=0x7fffffffffffffff;
-                }
-                else{
-			            wb_data= static_cast<uint64_t>(static_cast<int64_t>(freg_file[rs1]));
-                }
-              }
-              else{
-                wb_data=0x7fffffffffffffff;
-              }
-              break;
-            case 0b00011: //FCVT.LU.S
-			        if(!isnan(freg_file[rs1])){
-                if(isinf(freg_file[rs1]) && !signbit(freg_file[rs1])){
-                  wb_data=0xffffffffffffffff;
-                }
-                else if(freg_file[rs1]<=-1.0){
-                  wb_data=0;
-                  //Set invalid flag high
-                  temp = fcsr.read_fflags();
-	                fcsr.write_fflags(0b10000 | temp);
-                }
-                else if(freg_file[rs1]<0.0){
-                  freg_file[rs1]=round_to_int(rm,freg_file[rs1]);
-                  if(freg_file[rs1]==0.0){
-                    wb_data=0;
-                    //Set inexact flag high
-                    temp = fcsr.read_fflags();
-	                  fcsr.write_fflags(0b00001 | temp);
-                  }
-                  else{
-                    wb_data=0;
-                    //Set invaid flag high
-                    temp = fcsr.read_fflags();
-	                  fcsr.write_fflags(0b10000 | temp);
-                  }
-                }
-                else{
-                  wb_data= wb_data= static_cast<uint64_t>(freg_file[rs1]);
-                }
-              }
-              else{
-                wb_data=0xffffffffffffffff;
-              }
-              break;
-            default:		
-              break; 
-		      }
-          setfflags();
-          reg_file[rd] = wb_data;
-          roundingmode_revert();
-          break;
+					if (isnan(freg_file[rs1]) || (freg_file[rs1] == INFINITY) || \
+					(freg_file[rs1] > static_cast<float>(0xffffffffffffffffllu >> (33 - (rs2&1) - ((rs2&2)*16)))) /* Output for out-of-range positive input */ ) {
+
+						wb_data = 0xffffffffffffffffllu >> ((rs2 == 0) ? 33 : ((rs2 == 2) ? 1 : 0));  // most positive value representable by target value
+						fcsr.write_fflags(0b10000 | fcsr.read_fflags()); // set invalid bit
+					} else if ((freg_file[rs1] == -INFINITY) || \
+					((rs2&1)?((FLOAT_TO_32BITS(freg_file[rs1]) >= 0x80000000u) && (static_cast<int32_t>(freg_file[rs1]) < 0)):\
+					(freg_file[rs1] < (static_cast<float>(static_cast<int64_t>(0xffffffff80000000 << (32*(rs2&2))))))) /* Output for out-of-range negative input */) {
+
+						wb_data = (rs2&1) ? 0 : (0xffffffff80000000 << (16*(rs2&2))); // most negative value representable by target value
+						fcsr.write_fflags(0b10000 | fcsr.read_fflags()); // set invalid bit
+					} else {
+						if ( FLOAT_TO_32BITS(freg_file[rs1]) & \
+						((((FLOAT_TO_32BITS(freg_file[rs1]) >> 23) & 0xff) < 150)?((1 << (150 - ((FLOAT_TO_32BITS(freg_file[rs1]) >> 23) & 0xff))) - 1):0) /*bits lost after conversion*/ ) {
+							// inexact converstion
+							fcsr.write_fflags(0b00001 | fcsr.read_fflags());
+						}
+						//no need to check for the lower limit of int32_t because it is handled accordingly
+						switch (rs2) {
+						case 0b00000: wb_data = static_cast<uint64_t>(static_cast<int32_t>(freg_file[rs1])); break; //FCVT.W.S
+						case 0b00001: wb_data = static_cast<int32_t>(static_cast<uint32_t>(freg_file[rs1])); break; //FCVT.WU.S
+						case 0b00010: wb_data = static_cast<uint64_t>(static_cast<int64_t>(freg_file[rs1])); break; //FCVT.L.S
+						case 0b00011: wb_data = static_cast<uint64_t>(static_cast<uint64_t>(freg_file[rs1])); break; //FCVT.LU.S
+						default: break; // illegal instruction
+						}
+					}
+
+					reg_file[rd] = wb_data;
+					roundingmode_revert();
+					break;
 				case 0b1010000: //FEQ.S FLT.S FLE.S  here rd is in integer register file
 
 					feclearexcept(FE_ALL_EXCEPT);

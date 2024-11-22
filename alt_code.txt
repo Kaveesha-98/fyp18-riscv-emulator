@@ -1,0 +1,73 @@
+//FCVT.W.S FCVTWU.S FCVT.L.S FCVT.LU.S
+					
+					switch (rs2) {
+					case 0b00000: //FCVT.W.S 33
+						if ((freg_file[rs1] == -INFINITY) || (freg_file[rs1] < -2147483648.0)) {
+							// (negative infinity) or (Output for out-of-range negative input)
+							wb_data = 0xffffffff80000000; fcsr.write_fflags(0b10000 | fcsr.read_fflags()); // set invalid bit
+						} else if (((FLOAT_TO_32BITS(freg_file[rs1]) & 0x7f800000) == 0x7f800000) || (freg_file[rs1] > 2147483647.0)) {
+							// (positive infinity, NaN) or (Output for out-of-range positive input)
+							wb_data = 0x000000007fffffff; fcsr.write_fflags(0b10000 | fcsr.read_fflags()); // set invalid bit
+						} else {
+							if ( FLOAT_TO_32BITS(freg_file[rs1]) & ((1 << (150 - ((FLOAT_TO_32BITS(freg_file[rs1]) >> 23) & 0xff))) - 1) ) {
+								// inexact converstion
+								fcsr.write_fflags(0b00001 | fcsr.read_fflags());
+							}
+							//no need to check for the lower limit of int32_t because it is handled accordingly
+							wb_data = static_cast<uint64_t>(static_cast<int32_t>(freg_file[rs1]));
+						}
+						break;
+					case 0b00001: //FCVT.WU.S 32
+						printf("freg: %08x\n", static_cast<int32_t>(freg_file[rs1]));
+						if (((freg_file[rs1] != INFINITY) && !isnan((freg_file[rs1]))) && ((freg_file[rs1] == -INFINITY) || ((FLOAT_TO_32BITS(freg_file[rs1]) >= 0x80000000u) && (static_cast<int32_t>(freg_file[rs1]) < 0)))) {
+							// (negative infinity) or (Output for out-of-range negative input)
+							wb_data = 0; fcsr.write_fflags(0b10000 | fcsr.read_fflags()); // set invalid bit
+						} else if (((FLOAT_TO_32BITS(freg_file[rs1]) & 0x7f800000) == 0x7f800000) || (freg_file[rs1] > 4294967295.0)) {
+							// (positive infinity, NaN) or (Output for out-of-range positive input)
+							wb_data = 0xffffffffffffffff; fcsr.write_fflags(0b10000 | fcsr.read_fflags()); // set invalid bit
+						} else {
+							if ( FLOAT_TO_32BITS(freg_file[rs1]) & ((((FLOAT_TO_32BITS(freg_file[rs1]) >> 23) & 0xff) < 150)?((1 << (150 - ((FLOAT_TO_32BITS(freg_file[rs1]) >> 23) & 0xff))) - 1):0) ) {
+								// inexact converstion
+								fcsr.write_fflags(0b00001 | fcsr.read_fflags());
+							}
+							//no need to check for the lower limit of int32_t because it is handled accordingly
+							wb_data = static_cast<int32_t>(static_cast<uint32_t>(freg_file[rs1]));
+						}
+						debug("wb_data result: %016lx fcsr: %016lx\n", wb_data, fcsr.read_fflags());
+						break;
+					case 0b00010: //FCVT.L.S 1
+						if ((freg_file[rs1] == -INFINITY) || (freg_file[rs1] < -9223372036854775808.0)) {
+							// (negative infinity) or (Output for out-of-range negative input)
+							wb_data = 0x8000000000000000; fcsr.write_fflags(0b10000 | fcsr.read_fflags()); // set invalid bit
+						} else if (((FLOAT_TO_32BITS(freg_file[rs1]) & 0x7f800000) == 0x7f800000) || (freg_file[rs1] > 9223372036854775807.0)) {
+							// (positive infinity, NaN) or (Output for out-of-range positive input)
+							wb_data = 0x7fffffffffffffff; fcsr.write_fflags(0b10000 | fcsr.read_fflags()); // set invalid bit
+						} else {
+							if ( FLOAT_TO_32BITS(freg_file[rs1]) & ((1 << (150 - ((FLOAT_TO_32BITS(freg_file[rs1]) >> 23) & 0xff))) - 1) ) {
+								// inexact converstion
+								fcsr.write_fflags(0b00001 | fcsr.read_fflags());
+							}
+							//no need to check for the lower limit of int32_t because it is handled accordingly
+							wb_data = static_cast<uint64_t>(static_cast<int64_t>(freg_file[rs1]));
+						}
+						break;
+					case 0b00011: //FCVT.LU.S 0
+						if (((freg_file[rs1] != INFINITY) && !isnan((freg_file[rs1]))) && ((freg_file[rs1] == -INFINITY) || ((FLOAT_TO_32BITS(freg_file[rs1]) >= 0x80000000u) && (static_cast<int32_t>(freg_file[rs1]) < 0)))) {
+							// (negative infinity) or (Output for out-of-range negative input)
+							wb_data = 0; fcsr.write_fflags(0b10000 | fcsr.read_fflags()); // set invalid bit
+						} else if (((FLOAT_TO_32BITS(freg_file[rs1]) & 0x7f800000) == 0x7f800000) || (freg_file[rs1] > 18446744073709551615.0)) {
+							// (positive infinity, NaN) or (Output for out-of-range positive input)
+							wb_data = 0xffffffffffffffff; fcsr.write_fflags(0b10000 | fcsr.read_fflags()); // set invalid bit
+						} else {
+							if ( FLOAT_TO_32BITS(freg_file[rs1]) & ((1 << (150 - ((FLOAT_TO_32BITS(freg_file[rs1]) >> 23) & 0xff))) - 1) ) {
+								// inexact converstion
+								fcsr.write_fflags(0b00001 | fcsr.read_fflags());
+							}
+							//no need to check for the lower limit of int32_t because it is handled accordingly
+							wb_data = static_cast<uint64_t>(static_cast<int64_t>(freg_file[rs1]));
+						}
+						break;
+					
+					default:
+						break;
+					}
