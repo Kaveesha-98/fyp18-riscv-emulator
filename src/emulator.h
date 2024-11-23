@@ -2841,66 +2841,6 @@ public:
 
 				roundingmode_revert();
 				break;
-      /* case fmadd: {
-        float temp_result = (freg_file[rs1] * freg_file[rs2]) + freg_file[rs3];
-
-        roundingmode_change(rm,temp_result);
-
-        feclearexcept(FE_ALL_EXCEPT);
-        f_wb_data = (freg_file[rs1] * freg_file[rs2]) + freg_file[rs3];
-        setfflags();
-
-        freg_file[rd] = f_wb_data;
-
-        roundingmode_revert();
-
-        break;
-      }
-      case fmsub: {
-        float temp_result = (freg_file[rs1] * freg_file[rs2]) - freg_file[rs3];
-
-        roundingmode_change(rm,temp_result);  
-
-        feclearexcept(FE_ALL_EXCEPT);
-        f_wb_data = (freg_file[rs1] * freg_file[rs2]) - freg_file[rs3];
-        setfflags();
-
-        freg_file[rd] = f_wb_data;
-
-        roundingmode_revert();
-
-        break;
-      }
-      case fnmsub:{
-        float temp_result = - (freg_file[rs1] * freg_file[rs2]) + freg_file[rs3];
-
-        roundingmode_change(rm,temp_result);   
-
-        feclearexcept(FE_ALL_EXCEPT);
-        f_wb_data = - (freg_file[rs1] * freg_file[rs2]) + freg_file[rs3];
-        setfflags();
-
-        freg_file[rd] = f_wb_data;
-
-        roundingmode_revert();
-
-        break;
-      }
-      case fnmadd:{
-        float temp_result = - (freg_file[rs1] * freg_file[rs2]) - freg_file[rs3];
-
-        roundingmode_change(rm,temp_result);  
-
-        feclearexcept(FE_ALL_EXCEPT);
-        f_wb_data = - (freg_file[rs1] * freg_file[rs2]) - freg_file[rs3];
-        setfflags();
-
-        freg_file[rd] = f_wb_data;
-
-        roundingmode_revert();
-
-        break;
-      } */
 			case fcomp:
 				switch (func7) {
 				case 0b0000000: //FADD.S
