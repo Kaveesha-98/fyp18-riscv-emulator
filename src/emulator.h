@@ -2767,53 +2767,42 @@ public:
           break;
         }
         break;
-      //* Line 1043 Adding S instructions
-      //wb_data and f_wb_data assigned as arrised to reduce confussion. 
-      case fload:
-        load_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm11_0, 12)) & 0x00000000ffffffff;
-        if (signed_value(load_addr) < 0){
-            LD_ACC_FAULT = true;
-        } else {
-          if ((load_addr != FIFO_ADDR_RX) && ((load_addr != FIFO_ADDR_TX)))
-          {
-            if ((load_addr >= DRAM_BASE) & (load_addr <= (DRAM_BASE + 0x9000000)))
-            {
-              load_data = memory.at((load_addr - DRAM_BASE) / 8);
-              //For load word
-              if (func3 == 0b010) {
-                if (!load_word_fp(load_addr, load_data, f_wb_data)) {
-                  LD_ADDR_MISSALIG = true;
-                } else {
-                  freg_file[rd] = f_wb_data;
-                }
-              }
-            }
-          }
-        }
-        break;
-      case fstore:
-        store_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm_s, 12)) & 0x00000000ffffffff;
-        if (store_addr != FIFO_ADDR_TX)
-        {
-          if ((store_addr >= DRAM_BASE) & (store_addr < (DRAM_BASE + 0x9000000)))
-          {
-            store_data = memory.at((store_addr - DRAM_BASE) / 8);
-            if (func3 == 0b010) {
-              f_val = freg_file[rs2];
-              ls_success = store_word_fp(store_addr, store_data, f_val, wb_data);
-            }
-            if (!ls_success)
-            {
-              PC = excep_function(PC, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, cp);
-            }
-            else
-            {
-              memory.at((store_addr - DRAM_BASE) / 8) = wb_data;
-              load_data = memory.at((load_addr - DRAM_BASE) / 8);
-            }
-          }
-        } 
-        break;
+		//* Line 1043 Adding S instructions
+		//wb_data and f_wb_data assigned as arrised to reduce confussion. 
+		case fload:
+			load_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm11_0, 12)) & 0x00000000ffffffff;
+			if ((load_addr >= DRAM_BASE) & (load_addr <= (DRAM_BASE + 0x9000000))) {
+				load_data = memory.at((load_addr - DRAM_BASE) / 8);
+				//For load word
+				if (func3 == 0b010) {
+					if (!load_word_fp(load_addr, load_data, f_wb_data)) {
+						LD_ADDR_MISSALIG = true;
+					} else {
+						freg_file[rd] = f_wb_data;
+					}
+				}
+			} else {
+				// illegal access
+			}
+			break;
+			case fstore:
+				store_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm_s, 12)) & 0x00000000ffffffff;
+				if ((store_addr >= DRAM_BASE) & (store_addr < (DRAM_BASE + 0x9000000))) {
+					store_data = memory.at((store_addr - DRAM_BASE) / 8);
+					if (func3 == 0b010) {
+						f_val = freg_file[rs2];
+						ls_success = store_word_fp(store_addr, store_data, f_val, wb_data);
+					}
+					if (!ls_success) {
+						PC = excep_function(PC, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, cp);
+					} else {
+						memory.at((store_addr - DRAM_BASE) / 8) = wb_data;
+						load_data = memory.at((load_addr - DRAM_BASE) / 8);
+					}
+				} else {
+					// illegal access
+				}
+				break;
 			case fmadd:
 			case fmsub:
 			case fnmsub:
