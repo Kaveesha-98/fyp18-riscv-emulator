@@ -3014,15 +3014,10 @@ public:
           }
           freg_file[rd] = f_wb_data;
           break;
-        case 0b0010100: //FMIN.S FMAX.S 
-          //Exception flags and results are handled by the min_max_f function
-		      if (func3 == 0b000) { //FMIN.S
-            f_wb_data = min_max_f(freg_file[rs1], freg_file[rs2], 0);
-		      } else if (func3 == 0b001) {//FMAX.S
-            f_wb_data = min_max_f(freg_file[rs1], freg_file[rs2], 1);
-          } 
-          freg_file[rd] = f_wb_data;
-          break;
+				case 0b0010100: //FMIN.S FMAX.S 
+					//Exception flags and results are handled by the min_max_f function
+					freg_file[rd] = min_max_f(freg_file[rs1], freg_file[rs2], rm&1);
+					break;
 
 				case 0b1100000: //FCVT.W.S FCVTWU.S FCVT.L.S FCVT.LU.S
 					roundingmode_change(rm, freg_file[rs1]);
