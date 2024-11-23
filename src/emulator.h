@@ -2962,58 +2962,17 @@ public:
           
           break;
         }
-        case 0b0010000: //FSGNJ.S FSGNJN.S FSGNJX.S
-          switch (rm) {
-          case 0b000: //FSGNJ.S
-            if (freg_file[rs2] >= 0) {
-              if (freg_file[rs1] >= 0) {
-                f_wb_data = freg_file[rs1];
-              } else {
-                f_wb_data = (-1) * freg_file[rs1];
-              }
-            } else {
-              if (freg_file[rs1] >= 0) {
-                f_wb_data = (-1) * freg_file[rs1];
-              } else {
-                f_wb_data = freg_file[rs1];
-              }
-            }
-            break;
-          case 0b001: //FSGNJN.S
-		        if(freg_file[rs2] >= 0){
-			        if(freg_file[rs1] >= 0){
-			          f_wb_data=(-1)*freg_file[rs1];
-			        } else{
-			          f_wb_data=freg_file[rs1];
-			        }
-			      } else{
-			        if(freg_file[rs1] >= 0){
-			          f_wb_data=freg_file[rs1];
-			        } else{
-			          f_wb_data=(-1)*freg_file[rs1];
-			        }
-			      }
-            break;
-          case 0b010: //FSGNJX.S
-		        if(freg_file[rs2] >= 0){
-			        if(freg_file[rs1] >= 0){
-			          f_wb_data=freg_file[rs1];
-			        } else{
-			          f_wb_data=freg_file[rs1];
-			        }
-			      } else{
-			        if(freg_file[rs1] >= 0){
-			          f_wb_data=(-1)*freg_file[rs1];
-			        } else{
-			          f_wb_data=(-1)*freg_file[rs1];
-			        }
-			      }  
-            break;
-          default:
-            break;
-          }
-          freg_file[rd] = f_wb_data;
-          break;
+				case 0b0010000: //FSGNJ.S FSGNJN.S FSGNJX.S
+					int32_t result_bits;
+					switch (rm) {
+					case 0b000: result_bits = (FLOAT_TO_32BITS(freg_file[rs1]) & 0x7fffffff) | (FLOAT_TO_32BITS(freg_file[rs2]) & 0x80000000); break;  //FSGNJ.S
+					case 0b001: result_bits = (FLOAT_TO_32BITS(freg_file[rs1]) & 0x7fffffff) | ((~FLOAT_TO_32BITS(freg_file[rs2])) & 0x80000000); break;  //FSGNJN.S
+					case 0b010: result_bits = (FLOAT_TO_32BITS(freg_file[rs1]) & 0x7fffffff) | ((FLOAT_TO_32BITS(freg_file[rs2]) ^ FLOAT_TO_32BITS(freg_file[rs1])) & 0x80000000); break;  //FSGNJX.S
+					default:
+						break;
+					}
+					freg_file[rd] = *reinterpret_cast<float*>(&result_bits);
+					break;
 				case 0b0010100: //FMIN.S FMAX.S 
 					//Exception flags and results are handled by the min_max_f function
 					freg_file[rd] = min_max_f(freg_file[rs1], freg_file[rs2], rm&1);
