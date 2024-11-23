@@ -2874,94 +2874,45 @@ public:
 
         break;
       }
-      case fcomp:
-        switch (func7) {
-        case 0b0000000: { //FADD.S
-          float temp_result = freg_file[rs1] + freg_file[rs2];
- 
-          roundingmode_change(rm,temp_result);
+			case fcomp:
+				switch (func7) {
+				case 0b0000000: //FADD.S
+				case 0b0000100: //FSUB.S
+				case 0b0001000: //FMUL.S
+				case 0b0001100: //FDIV.S
+				case 0b0101100: //FSQRT.S
+					float temp_result;
+					switch (func7) {
+					case 0b0000000: temp_result = freg_file[rs1] + freg_file[rs2]; break; //FADD.S
+					case 0b0000100: temp_result = freg_file[rs1] - freg_file[rs2]; break; //FSUB.S
+					case 0b0001000: temp_result = freg_file[rs1] * freg_file[rs2]; break; //FMUL.S
+					case 0b0001100: temp_result = freg_file[rs1] / freg_file[rs2]; break; //FDIV.S
+					case 0b0101100: temp_result = sqrt(freg_file[rs1]); break; //FSQRT.S
+					}
 
-          feclearexcept(FE_ALL_EXCEPT);
- 		      f_wb_data = freg_file[rs1] + freg_file[rs2];
-          setfflags();
+					roundingmode_change(rm,temp_result);
 
-          freg_file[rd] = f_wb_data;
- 
-          roundingmode_revert();
- 
-          break;
-        }
-		    case 0b0000100: { //FSUB.S
-          float temp_result = freg_file[rs1] - freg_file[rs2];
+					feclearexcept(FE_ALL_EXCEPT);
 
-          roundingmode_change(rm,temp_result); 
+					switch (func7) {
+					case 0b0000000: f_wb_data = freg_file[rs1] + freg_file[rs2]; break; //FADD.S
+					case 0b0000100: f_wb_data = freg_file[rs1] - freg_file[rs2]; break; //FSUB.S
+					case 0b0001000: f_wb_data = freg_file[rs1] * freg_file[rs2]; break; //FMUL.S
+					case 0b0001100: f_wb_data = freg_file[rs1] / freg_file[rs2]; break; //FDIV.S
+					case 0b0101100: f_wb_data = sqrt(freg_file[rs1]); break; //FSQRT.S
+					}
+					setfflags();
+					if (((FLOAT_TO_32BITS(f_wb_data) & 0x7f800000) == 0x7f800000) && (FLOAT_TO_32BITS(f_wb_data) & 0x007fffff)) {
+						int temp = 0x7FC00000;
+						float* tempPtr = reinterpret_cast<float*>(&temp);
+						f_wb_data = *tempPtr;
+					}
 
-          feclearexcept(FE_ALL_EXCEPT);
-		      f_wb_data = freg_file[rs1] - freg_file[rs2];
-          setfflags();
-          //To handle -NaN output
-          if (number_class(f_wb_data) == 9) {
-            int temp = 0x7FC00000;
-            float* tempPtr = reinterpret_cast<float*>(&temp);
-            f_wb_data = *tempPtr;
-          }
+					freg_file[rd] = f_wb_data;
 
-          freg_file[rd] = f_wb_data;
+					roundingmode_revert();
 
-          roundingmode_revert();
-
-          break;
-        }
-		    case 0b0001000: { //FMUL.S
-          float temp_result = freg_file[rs1] * freg_file[rs2];
-
-          roundingmode_change(rm,temp_result);
-
-          feclearexcept(FE_ALL_EXCEPT);
-		      f_wb_data = freg_file[rs1] * freg_file[rs2];
-          setfflags();
-
-          freg_file[rd] = f_wb_data;
-
-          roundingmode_revert();
-
-          break;
-        }
-		    case 0b0001100: { //FDIV.S
-          float temp_result = freg_file[rs1] / freg_file[rs2];
-
-          roundingmode_change(rm,temp_result); 
-
-          feclearexcept(FE_ALL_EXCEPT);
-		      f_wb_data = freg_file[rs1] / freg_file[rs2];
-          setfflags();
-
-          freg_file[rd] = f_wb_data;
-
-          roundingmode_revert();
-
-          break;
-        }
-		    case 0b0101100: { //FSQRT.S
-          float temp_result = sqrt(freg_file[rs1]);
-
-          roundingmode_change(rm,temp_result); 
-
-          feclearexcept(FE_ALL_EXCEPT);
-		      f_wb_data = sqrt(freg_file[rs1]);
-          setfflags();
-          //To handle -NaN output
-          if (number_class(f_wb_data) == 9) {
-            int temp = 0x7FC00000;
-            float* tempPtr = reinterpret_cast<float*>(&temp);
-            f_wb_data = *tempPtr;
-          }
-          freg_file[rd] = f_wb_data;
-
-          roundingmode_revert();
-          
-          break;
-        }
+					break;
 				case 0b0010000: //FSGNJ.S FSGNJN.S FSGNJX.S
 					int32_t result_bits;
 					switch (rm) {
