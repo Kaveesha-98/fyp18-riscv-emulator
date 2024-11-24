@@ -2592,199 +2592,68 @@ public:
         break;
       case fence:
         break;
-      case systm:
-        switch (func3)
-        {
-        case 0b001: // CSRRW
-          csr_data = csr_read(imm11_0);
-          if (csr_read_success)
-          {
-            store_data = reg_file[rs1];
-            csr_bool = csr_write(imm11_0, store_data);
-            if (!csr_bool)
-            {
-              mtval = instruction;
-              ILL_INS = true;
-            }
-            else if (rd != 0)
-            {
-              reg_file[rd] = csr_data;
-            }
-          }
-          else
-          {
-            mtval = instruction;
-            ILL_INS = true;
-          }
-          break;
-        case 0b010: // CSRRS
-          csr_data = csr_read(imm11_0);
-          if (csr_read_success)
-          {
-            // if((imm11_0==CYCLE || imm11_0==INSTRET) && rd==0 && rs1 == 0) {
-            //     break;
-            // }
-            store_data = reg_file[rs1];
-            store_data = (store_data | csr_data);
-            csr_bool = csr_write(imm11_0, store_data);
-            if (!csr_bool)
-            {
-              mtval = instruction;
-              ILL_INS = true;
-            }
-            else
-            {
-              reg_file[rd] = csr_data;
-            }
-          }
-          else
-          {
-            mtval = instruction;
-            ILL_INS = true;
-          }
-          break;
-        case 0b011: // CSRRC
-          csr_data = csr_read(imm11_0);
-          if (csr_read_success)
-          {
-            // if(imm11_0==CYCLE || imm11_0==INSTRET) {
-            //     reg_file[rd] = csr_data;
-            // } else {
-            store_data = reg_file[rs1];
-            store_data = (csr_data & (MASK64 - store_data));
-            csr_bool = csr_write(imm11_0, store_data);
-            if (!csr_bool)
-            {
-              mtval = instruction;
-              ILL_INS = true;
-            }
-            else
-            {
-              reg_file[rd] = csr_data;
-            }
-            // }
-          }
-          else
-          {
-            mtval = instruction;
-            ILL_INS = true;
-          }
-          break;
-        case 0b101: // CSRRWI
-          csr_data = csr_read(imm11_0);
-          if (csr_read_success)
-          {
-            csr_bool = csr_write(imm11_0, rs1);
-            if (!csr_bool)
-            {
-              mtval = instruction;
-              ILL_INS = true;
-            }
-            else if (rd != 0)
-            {
-              reg_file[rd] = csr_data;
-            }
-          }
-          else
-          {
-            mtval = instruction;
-            ILL_INS = true;
-          }
-          break;
-        case 0b110: // CSRRSI
-          csr_data = csr_read(imm11_0);
-          if (csr_read_success)
-          {
-            // if((imm11_0==CYCLE || imm11_0==INSTRET) && rd==0 && rs1 == 0) {
-            //     break;
-            // }
-            store_data = (rs1 | csr_data);
-            csr_bool = csr_write(imm11_0, store_data);
-            if (!csr_bool)
-            {
-              mtval = instruction;
-              ILL_INS = true;
-            }
-            else
-            {
-              reg_file[rd] = csr_data;
-            }
-          }
-          else
-          {
-            mtval = instruction;
-            ILL_INS = true;
-          }
-          break;
-        case 0b111: // CSRRCI
-          csr_data = csr_read(imm11_0);
-          if (csr_read_success)
-          {
-            // if(imm11_0==CYCLE || imm11_0==INSTRET) {
-            //     reg_file[rd] = csr_data;
-            // }
-            // else {
-            store_data = (csr_data & (MASK64 - rs1));
-            csr_bool = csr_write(imm11_0, store_data);
-            if (!csr_bool)
-            {
-              mtval = instruction;
-              ILL_INS = true;
-            }
-            else
-            {
-              reg_file[rd] = csr_data;
-            }
-            // }
-          }
-          else
-          {
-            mtval = instruction;
-            ILL_INS = true;
-          }
-          break;
-        case 0b000:
-          switch (imm11_0)
-          {
-          case 0: // ecall
-            PC = excep_function(PC, CAUSE_MACHINE_ECALL, CAUSE_SUPERVISOR_ECALL, CAUSE_USER_ECALL, cp);
-            break;
-          case 1: // ebreak
-            EBREAK = true;
-            break;
-          case 770: // mret
-            PC = mepc;
-            cp = (plevel_t)mstatus.mpp;
-            mstatus.mie = mstatus.mpie; // 1; ?
-            mstatus.mpp = 0b00;         // setting to umode (least privilage mode)
-            mstatus.mpie = 1;           // 0; ?
-            break;
-          default:
-            break;
-          }
-          break;
-        default:
-          break;
-        }
-        break;
-		//* Line 1043 Adding S instructions
-		//wb_data and f_wb_data assigned as arrised to reduce confussion. 
-		case fload:
-			load_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm11_0, 12)) & 0x00000000ffffffff;
-			if ((load_addr >= DRAM_BASE) & (load_addr <= (DRAM_BASE + 0x9000000))) {
-				load_data = memory.at((load_addr - DRAM_BASE) / 8);
-				//For load word
-				if (func3 == 0b010) {
-					if (!load_word_fp(load_addr, load_data, f_wb_data)) {
-						LD_ADDR_MISSALIG = true;
-					} else {
-						freg_file[rd] = f_wb_data;
+			case systm:
+				switch (func3) {
+				case 0b000:
+					switch (imm11_0) {
+					case 0: // ecall
+						PC = excep_function(PC, CAUSE_MACHINE_ECALL, CAUSE_SUPERVISOR_ECALL, CAUSE_USER_ECALL, cp);
+						break;
+					case 1: // ebreak
+						EBREAK = true;
+						break;
+					case 770: // mret
+						PC = mepc;
+						cp = (plevel_t)mstatus.mpp;
+						mstatus.mie = mstatus.mpie; // 1; ?
+						mstatus.mpp = 0b00;         // setting to umode (least privilage mode)
+						mstatus.mpie = 1;           // 0; ?
+						break;
+					default:
+						break;
 					}
+					break;
+				default:
+					csr_data = csr_read(imm11_0);
+					if (csr_read_success) {
+						store_data =  func3&4 ? rs1 : reg_file[rs1];
+						switch (func3 & 3) {
+						case 0b01: csr_bool = csr_write(imm11_0, store_data); break; // CSRRW*
+						case 0b10: csr_bool = csr_write(imm11_0, (store_data | csr_data)); break; // CSRRS*
+						case 0b11: csr_bool = csr_write(imm11_0, ((~store_data) & csr_data)); break; // CSRRC*
+						default: break; // illegal instruction
+						}
+						if (!csr_bool) {
+							mtval = instruction;
+							ILL_INS = true;
+						} else if (rd != 0) {
+							reg_file[rd] = csr_data;
+						}
+					} else {
+						mtval = instruction;
+						ILL_INS = true;
+					}
+					break;
 				}
-			} else {
-				// illegal access
-			}
-			break;
+				break;
+			//* Line 1043 Adding S instructions
+			//wb_data and f_wb_data assigned as arrised to reduce confussion. 
+			case fload:
+				load_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm11_0, 12)) & 0x00000000ffffffff;
+				if ((load_addr >= DRAM_BASE) & (load_addr <= (DRAM_BASE + 0x9000000))) {
+					load_data = memory.at((load_addr - DRAM_BASE) / 8);
+					//For load word
+					if (func3 == 0b010) {
+						if (!load_word_fp(load_addr, load_data, f_wb_data)) {
+							LD_ADDR_MISSALIG = true;
+						} else {
+							freg_file[rd] = f_wb_data;
+						}
+					}
+				} else {
+					// illegal access
+				}
+				break;
 			case fstore:
 				store_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm_s, 12)) & 0x00000000ffffffff;
 				if ((store_addr >= DRAM_BASE) & (store_addr < (DRAM_BASE + 0x9000000))) {
