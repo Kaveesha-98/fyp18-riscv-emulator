@@ -28,8 +28,8 @@
 
 #pragma STDC FENV_ACCESS ON
 
-// #define debug(fmt,...) printf(fmt, ##__VA_ARGS__)
-#define debug(fmt,...)
+#define debug(fmt,...) printf(fmt, ##__VA_ARGS__)
+// #define debug(fmt,...)
 #define FLOAT_TO_32BITS(x) (*reinterpret_cast<uint32_t*>(&x))
 
 using namespace std;
@@ -2417,179 +2417,70 @@ public:
           }
           reg_file[rd] = ret_data;
         }
-        else if (func3 == 0b011)
-        { // AMO.D-64
-          load_addr = reg_file[rs1] & 0x00000000ffffffff;
-          if (load_addr > DRAM_BASE & load_addr < DRAM_BASE + 0x9000000)
-          {
-            load_addr = load_addr;
-          }
-          else
-          {
-            printf("illegal access\n");
-            exit(0);
-          }
-          wb_data = memory.at((load_addr - DRAM_BASE) / 8);
-          switch (amo_op)
-          {
-          case 0b00010: // LR.D
-            if ((load_addr % 8) != 0)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = wb_data;
-              amo_reserve_valid64 = true;
-              amo_reserve_addr64 = reg_file[rs1];
-            }
-            break;
-          case 0b00011: // SC.D
-            if (amo_reserve_valid64 && (reg_file[rs1] == amo_reserve_addr64))
-            {
-              store_data = reg_file[rs2];
-              if ((load_addr % 8) != 0)
-              {
-                mtval = load_addr;
-                STORE_ADDR_MISSALIG = true;
-              }
-              else
-              {
-                memory.at((load_addr - DRAM_BASE) / 8) = store_data;
-                ret_data = 0;
-              }
-            }
-            else
-            {
-              ret_data = 1;
-            }
-            amo_reserve_addr64 = 0;
-            amo_reserve_valid64 = false;
-            break;
-          case 0b00001: // AMOSWAP.D
-            if ((load_addr % 8) != 0)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = wb_data;
-              wb_data = reg_file[rs2];
-              memory.at((load_addr - DRAM_BASE) / 8) = wb_data;
-            }
-            break;
-          case 0b00000: // AMOADD.D
-            if ((load_addr % 8) != 0)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = wb_data;
-              wb_data = (wb_data + reg_file[rs2]);
-              memory.at((load_addr - DRAM_BASE) / 8) = wb_data;
-            }
-            break;
-          case 0b00100: // AMOXOR.D
-            if ((load_addr % 8) != 0)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = wb_data;
-              wb_data = (wb_data ^ reg_file[rs2]);
-              memory.at((load_addr - DRAM_BASE) / 8) = wb_data;
-            }
-            break;
-          case 0b01100: // AMOAND.D
-            if ((load_addr % 8) != 0)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = wb_data;
-              wb_data = (wb_data & reg_file[rs2]);
-              memory.at((load_addr - DRAM_BASE) / 8) = wb_data;
-            }
-            break;
-          case 0b01000: // AMOOR.D
-            if ((load_addr % 8) != 0)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = wb_data;
-              wb_data = (wb_data | reg_file[rs2]);
-              memory.at((load_addr - DRAM_BASE) / 8) = wb_data;
-            }
-            break;
-          case 0b10000: // AMOMIN.D
-            if ((load_addr % 8) != 0)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = wb_data;
-              wb_data = min(signed_value(wb_data), signed_value(reg_file[rs2]));
-              memory.at((load_addr - DRAM_BASE) / 8) = wb_data;
-            }
-            break;
-          case 0b10100: // AMOMAX.D
-            if ((load_addr % 8) != 0)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = wb_data;
-              wb_data = max(signed_value(wb_data), signed_value(reg_file[rs2]));
-              memory.at((load_addr - DRAM_BASE) / 8) = wb_data;
-            }
-            break;
-          case 0b11000: // AMOMINU.D
-            if ((load_addr % 8) != 0)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = wb_data;
-              wb_data = min(wb_data, reg_file[rs2]);
-              memory.at((load_addr - DRAM_BASE) / 8) = wb_data;
-            }
-            break;
-          case 0b11100: // AMOMAXU.D
-            if ((load_addr % 8) != 0)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = wb_data;
-              wb_data = max(wb_data, reg_file[rs2]);
-              memory.at((load_addr - DRAM_BASE) / 8) = wb_data;
-            }
-            break;
-          default:
-            break;
-          }
-          reg_file[rd] = ret_data;
-        }
-        break;
+				else if (func3 == 0b011)
+				{ // AMO.D-64
+					load_addr = reg_file[rs1] & 0x00000000ffffffff;
+					if (load_addr > DRAM_BASE & load_addr < DRAM_BASE + 0x9000000) {
+						load_addr = load_addr;
+					} else {
+						printf("illegal access\n");
+						exit(0);
+					}
+					wb_data = memory.at((load_addr - DRAM_BASE) / 8);
+					switch (amo_op) {
+					case 0b00010: // LR.D
+						if ((load_addr % 8) != 0) {
+							mtval = load_addr;
+							STORE_ADDR_MISSALIG = true;
+						} else {
+							ret_data = wb_data;
+							amo_reserve_valid64 = true;
+							amo_reserve_addr64 = reg_file[rs1];
+						}
+						break;
+					case 0b00011: // SC.D
+						if (amo_reserve_valid64 && (reg_file[rs1] == amo_reserve_addr64)) {
+							store_data = reg_file[rs2];
+							if ((load_addr % 8) != 0) {
+								mtval = load_addr;
+								STORE_ADDR_MISSALIG = true;
+							}
+							else {
+								memory.at((load_addr - DRAM_BASE) / 8) = store_data;
+								ret_data = 0;
+							}
+						}
+						else {
+							ret_data = 1;
+						}
+						amo_reserve_addr64 = 0;
+						amo_reserve_valid64 = false;
+						break;
+					default:
+						if ((load_addr % 8) != 0) {
+							mtval = load_addr;
+							STORE_ADDR_MISSALIG = true;
+						} else {
+							ret_data = wb_data;
+							switch (amo_op) {
+							case 0b00001: wb_data = reg_file[rs2]; break; // AMOSWAP.D:
+							case 0b00000: wb_data = (wb_data + reg_file[rs2]); break; // AMOADD.D
+							case 0b00100: wb_data = (wb_data ^ reg_file[rs2]); break; // AMOXOR.D
+							case 0b01100: wb_data = (wb_data & reg_file[rs2]); break; // AMOAND.D
+							case 0b01000: wb_data = (wb_data | reg_file[rs2]); break; // AMOOR.D
+							case 0b10000: wb_data = min(signed_value(wb_data), signed_value(reg_file[rs2])); break; // AMOMIN.D
+							case 0b10100: wb_data = max(signed_value(wb_data), signed_value(reg_file[rs2])); break; // AMOMAX.D
+							case 0b11000: wb_data = min(wb_data, reg_file[rs2]); break; // AMOMINU.D
+							case 0b11100: wb_data = max(wb_data, reg_file[rs2]); break; // AMOMAXU.D
+							default: break;
+							}
+							memory.at((load_addr - DRAM_BASE) / 8) = wb_data;
+						}
+						break;
+					}
+					reg_file[rd] = ret_data;
+				}
+				break;
 			case fence:
 				break;
 			case systm:
