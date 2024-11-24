@@ -2590,8 +2590,8 @@ public:
           reg_file[rd] = ret_data;
         }
         break;
-      case fence:
-        break;
+			case fence:
+				break;
 			case systm:
 				switch (func3) {
 				case 0b000:
