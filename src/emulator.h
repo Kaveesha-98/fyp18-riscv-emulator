@@ -2223,202 +2223,76 @@ public:
           reg_file[rd] = wb_data;
         }
         break;
-      case amo:
-        if (func3 == 0b010)
-        { // AMO.W-32
-          load_addr = reg_file[rs1] & 0x00000000ffffffff;
-          if (load_addr > DRAM_BASE & load_addr < DRAM_BASE + 0x9000000)
-          {
-            load_addr = load_addr;
-          }
-          else
-          {
-            printf("illegal access\n");
-            exit(0);
-          }
-          load_data = memory.at((load_addr - DRAM_BASE) / 8);
-          switch (amo_op)
-          {
-          case 0b00010: // LR.W
-            ls_success = load_word(load_addr, load_data, wb_data);
-            if (!ls_success)
-            {
-              STORE_ADDR_MISSALIG = true;
-              mtval = load_addr;
-            }
-            else
-            {
-              ret_data = sign_extend<uint64_t>(wb_data & MASK32, 32);
-              amo_reserve_valid = true;
-              amo_reserve_addr = load_addr;
-            }
-            break;
-          case 0b00011: // SC.W
-            if (amo_reserve_valid && (reg_file[rs1] == amo_reserve_addr))
-            {
-              store_data = reg_file[rs2] & MASK32;
-              ls_success = store_word(load_addr, load_data, store_data, wb_data);
-              if (!ls_success)
-              {
-                STORE_ADDR_MISSALIG = true;
-                mtval = load_addr;
-                ret_data = 1;
-              }
-              else
-              {
-                memory.at((load_addr - DRAM_BASE) / 8) = wb_data;
-                ret_data = 0;
-              }
-            }
-            else
-            {
-              ret_data = 1;
-            }
-            amo_reserve_addr = 0;
-            amo_reserve_valid = false;
-            break;
-          case 0b00001: // AMOSWAP.W
-            ls_success = load_word(load_addr, load_data, wb_data);
-            if (!ls_success)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = sign_extend<uint64_t>((wb_data & MASK32), 32);
-              wb_data = reg_file[rs2] & MASK32;
-              ls_success = store_word(load_addr, load_data, wb_data, store_data);
-              memory.at((load_addr - DRAM_BASE) / 8) = store_data;
-            }
-            break;
-          case 0b00000: // AMOADD.W
-            ls_success = load_word(load_addr, load_data, wb_data);
-            if (!ls_success)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = sign_extend<uint64_t>((wb_data & MASK32), 32);
-              wb_data = ((wb_data & MASK32) + (reg_file[rs2] & MASK32)) & MASK32;
-              ls_success = store_word(load_addr, load_data, wb_data, store_data);
-              memory.at((load_addr - DRAM_BASE) / 8) = store_data;
-            }
-            break;
-          case 0b00100: // AMOXOR.W
-            ls_success = load_word(load_addr, load_data, wb_data);
-            if (!ls_success)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = sign_extend<uint64_t>((wb_data & MASK32), 32);
-              wb_data = ((wb_data & MASK32) ^ (reg_file[rs2] & MASK32)) & MASK32;
-              ls_success = store_word(load_addr, load_data, wb_data, store_data);
-              memory.at((load_addr - DRAM_BASE) / 8) = store_data;
-            }
-            break;
-          case 0b01100: // AMOAND.W
-            ls_success = load_word(load_addr, load_data, wb_data);
-            if (!ls_success)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = sign_extend<uint64_t>((wb_data & MASK32), 32);
-              wb_data = ((wb_data & MASK32) & (reg_file[rs2] & MASK32)) & MASK32;
-              ls_success = store_word(load_addr, load_data, wb_data, store_data);
-              memory.at((load_addr - DRAM_BASE) / 8) = store_data;
-            }
-            break;
-          case 0b01000: // AMOOR.W
-            ls_success = load_word(load_addr, load_data, wb_data);
-            if (!ls_success)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = sign_extend<uint64_t>((wb_data & MASK32), 32);
-              wb_data = ((wb_data & MASK32) | (reg_file[rs2] & MASK32)) & MASK32;
-              ls_success = store_word(load_addr, load_data, wb_data, store_data);
-              memory.at((load_addr - DRAM_BASE) / 8) = store_data;
-            }
-            break;
-          case 0b10000: // AMOMIN.W
-            ls_success = load_word(load_addr, load_data, wb_data);
-            if (!ls_success)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = sign_extend<uint64_t>((wb_data & MASK32), 32);
-              wb_data = min(signed_value32(wb_data & MASK32), signed_value32(reg_file[rs2] & MASK32)) & MASK32;
-              ls_success = store_word(load_addr, load_data, wb_data, store_data);
-              memory.at((load_addr - DRAM_BASE) / 8) = store_data;
-            }
-            break;
-          case 0b10100: // AMOMAX.W
-            ls_success = load_word(load_addr, load_data, wb_data);
-            if (!ls_success)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = sign_extend<uint64_t>((wb_data & MASK32), 32);
-              wb_data = max(signed_value32(wb_data & MASK32), signed_value32(reg_file[rs2] & MASK32)) & MASK32;
-              ls_success = store_word(load_addr, load_data, wb_data, store_data);
-              memory.at((load_addr - DRAM_BASE) / 8) = store_data;
-            }
-            break;
-          case 0b11000: // AMOMINU.W
-            ls_success = load_word(load_addr, load_data, wb_data);
-            if (!ls_success)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = sign_extend<uint64_t>((wb_data & MASK32), 32);
-              wb_data = min((wb_data & MASK32), (reg_file[rs2] & MASK32)) & MASK32;
-              ls_success = store_word(load_addr, load_data, wb_data, store_data);
-              memory.at((load_addr - DRAM_BASE) / 8) = store_data;
-            }
-            break;
-          case 0b11100: // AMOMAXU.W
-            ls_success = load_word(load_addr, load_data, wb_data);
-            if (!ls_success)
-            {
-              mtval = load_addr;
-              STORE_ADDR_MISSALIG = true;
-            }
-            else
-            {
-              ret_data = sign_extend<uint64_t>((wb_data & MASK32), 32);
-              wb_data = max((wb_data & MASK32), (reg_file[rs2] & MASK32)) & MASK32;
-              ls_success = store_word(load_addr, load_data, wb_data, store_data);
-              memory.at((load_addr - DRAM_BASE) / 8) = store_data;
-            }
-            break;
-          default:
-            break;
-          }
-          reg_file[rd] = ret_data;
-        }
-				else if (func3 == 0b011)
-				{ // AMO.D-64
+			case amo:
+				if (func3 == 0b010) { // AMO.W-32
+					load_addr = reg_file[rs1] & 0x00000000ffffffff;
+					if (load_addr > DRAM_BASE & load_addr < DRAM_BASE + 0x9000000) {
+						load_addr = load_addr;
+					} else {
+						printf("illegal access\n");
+						exit(0);
+					}
+					load_data = memory.at((load_addr - DRAM_BASE) / 8);
+					switch (amo_op) {
+					case 0b00010: // LR.W
+						ls_success = load_word(load_addr, load_data, wb_data);
+						if (!ls_success) {
+							STORE_ADDR_MISSALIG = true;
+							mtval = load_addr;
+						} else {
+							ret_data = sign_extend<uint64_t>(wb_data & MASK32, 32);
+							amo_reserve_valid = true;
+							amo_reserve_addr = load_addr;
+						}
+						break;
+					case 0b00011: // SC.W
+						if (amo_reserve_valid && (reg_file[rs1] == amo_reserve_addr)) {
+							store_data = reg_file[rs2] & MASK32;
+							ls_success = store_word(load_addr, load_data, store_data, wb_data);
+							if (!ls_success) {
+								STORE_ADDR_MISSALIG = true;
+								mtval = load_addr;
+								ret_data = 1;
+							} else {
+								memory.at((load_addr - DRAM_BASE) / 8) = wb_data;
+								ret_data = 0;
+							}
+						}
+						else {
+							ret_data = 1;
+						}
+						amo_reserve_addr = 0;
+						amo_reserve_valid = false;
+						break;
+					default:
+						ls_success = load_word(load_addr, load_data, wb_data);
+						if (!ls_success) {
+							mtval = load_addr;
+							STORE_ADDR_MISSALIG = true;
+						} else {
+							ret_data = sign_extend<uint64_t>((wb_data & MASK32), 32);
+							switch (amo_op)
+							{
+							case 0b00001: wb_data = reg_file[rs2] & MASK32; break; // AMOSWAP.W
+							case 0b00000: wb_data = ((wb_data & MASK32) + (reg_file[rs2] & MASK32)) & MASK32; break; // AMOADD.W
+							case 0b00100: wb_data = ((wb_data & MASK32) ^ (reg_file[rs2] & MASK32)) & MASK32; break; // AMOXOR.W
+							case 0b01100: wb_data = ((wb_data & MASK32) & (reg_file[rs2] & MASK32)) & MASK32; break; // AMOAND.W
+							case 0b01000: wb_data = ((wb_data & MASK32) | (reg_file[rs2] & MASK32)) & MASK32; break; // AMOOR.W
+							case 0b10000: wb_data = min(signed_value32(wb_data & MASK32), signed_value32(reg_file[rs2] & MASK32)) & MASK32; break; // AMOMIN.W
+							case 0b10100: wb_data = max(signed_value32(wb_data & MASK32), signed_value32(reg_file[rs2] & MASK32)) & MASK32; break; // AMOMAX.W
+							case 0b11000: wb_data = min((wb_data & MASK32), (reg_file[rs2] & MASK32)) & MASK32; break; // AMOMINU.W
+							case 0b11100: wb_data = max((wb_data & MASK32), (reg_file[rs2] & MASK32)) & MASK32; break; // AMOMAXU.W
+							default:
+								break;
+							}
+							ls_success = store_word(load_addr, load_data, wb_data, store_data);
+							memory.at((load_addr - DRAM_BASE) / 8) = store_data;
+						}
+						break;
+					}
+					reg_file[rd] = ret_data;
+				}
+				else if (func3 == 0b011) { // AMO.D-64
 					load_addr = reg_file[rs1] & 0x00000000ffffffff;
 					if (load_addr > DRAM_BASE & load_addr < DRAM_BASE + 0x9000000) {
 						load_addr = load_addr;
@@ -2463,7 +2337,7 @@ public:
 						} else {
 							ret_data = wb_data;
 							switch (amo_op) {
-							case 0b00001: wb_data = reg_file[rs2]; break; // AMOSWAP.D:
+							case 0b00001: wb_data = reg_file[rs2]; break; // AMOSWAP.W
 							case 0b00000: wb_data = (wb_data + reg_file[rs2]); break; // AMOADD.D
 							case 0b00100: wb_data = (wb_data ^ reg_file[rs2]); break; // AMOXOR.D
 							case 0b01100: wb_data = (wb_data & reg_file[rs2]); break; // AMOAND.D
