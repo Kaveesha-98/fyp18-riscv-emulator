@@ -2212,13 +2212,7 @@ public:
             wb_data = sign_extend<uint64_t>((((reg_file[rs1] & MASK32) - (reg_file[rs2] & MASK32)) & MASK32), 32);
             break;
           case 0b101: // SRAW
-            wb_data = reg_file[rs1] & MASK32;
-            for (itr = 0; itr < (reg_file[rs2] & 0b11111); itr++)
-            {
-              wb_data = ((wb_data & (1llu << 31)) | ((wb_data) >> (1)));
-            }
-            wb_data = sign_extend<uint64_t>(wb_data, 32);
-            break;
+						wb_data = static_cast<int32_t>((static_cast<int32_t>(reg_file[rs1])) >> (reg_file[rs2] & 31));
           }
           reg_file[rd] = wb_data;
         }
