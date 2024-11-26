@@ -2164,59 +2164,42 @@ public:
           reg_file[rd] = wb_data;
         }
         break;
-      case rops64:
-        if (func7 == 0b0000000)
-        {
-          switch (func3)
-          {
-          case 0b000: 
-            wb_data = static_cast<int32_t>(reg_file[rs1] + reg_file[rs2]);
-            break;
-          case 0b001: // SLLW
-            wb_data = static_cast<int32_t>((reg_file[rs1]) << ((reg_file[rs2]) & 0b11111));
-            break;
-          case 0b101: // SRLW
-            wb_data = static_cast<int32_t>((reg_file[rs1]&0xffffffffu) >> (reg_file[rs2] & 31));
-            break;
-          }
-          reg_file[rd] = wb_data;
-        }
-        else if (func7 == 0b0000001)
-        {
-          // outdata << hex << PC-4 << endl;
-          switch (func3)
-          {
-          case 0b000: // MULW
-            wb_data = sign_extend<uint64_t>(((reg_file[rs1] & MASK32) * (reg_file[rs2] & MASK32)) & MASK32, 32);
-            break;
-          case 0b100: // DIVW
-            wb_data = sign_extend<uint64_t>(MASK32 & ((uint64_t)divi32<int32_t>(signed_value32(reg_file[rs1] & MASK32), signed_value32(reg_file[rs2] & MASK32), 0)), 32);
-            break;
-          case 0b101: // DIVUW
-            wb_data = sign_extend<uint64_t>((uint64_t)divi32<uint32_t>(reg_file[rs1], reg_file[rs2], 1), 32);
-            break;
-          case 0b110: // REMW
-            wb_data = sign_extend<uint64_t>(((uint64_t)divi32<int32_t>(signed_value32(reg_file[rs1]), signed_value32(reg_file[rs2]), 2) & MASK32), 32);
-            break;
-          case 0b111: // REMUW
-            wb_data = sign_extend<uint64_t>((uint64_t)divi32<uint32_t>(reg_file[rs1], reg_file[rs2], 3), 32);
-            break;
-          }
-          reg_file[rd] = wb_data;
-        }
-        else if (func7 == 0b0100000)
-        {
-          switch (func3)
-          {
-          case 0b000: // SUBW
-            wb_data = static_cast<int32_t>(reg_file[rs1] - reg_file[rs2]);
-            break;
-          case 0b101: // SRAW
-						wb_data = static_cast<int32_t>((static_cast<int32_t>(reg_file[rs1])) >> (reg_file[rs2] & 31));
-          }
-          reg_file[rd] = wb_data;
-        }
-        break;
+			case rops64: // 32 bit instructions exclusive for rv64i
+				if (func7 == 0b0000001) {
+					switch (func3) {
+					case 0b000: // MULW
+						wb_data = sign_extend<uint64_t>(((reg_file[rs1] & MASK32) * (reg_file[rs2] & MASK32)) & MASK32, 32);
+						break;
+					case 0b100: // DIVW
+						wb_data = sign_extend<uint64_t>(MASK32 & ((uint64_t)divi32<int32_t>(signed_value32(reg_file[rs1] & MASK32), signed_value32(reg_file[rs2] & MASK32), 0)), 32);
+						break;
+					case 0b101: // DIVUW
+						wb_data = sign_extend<uint64_t>((uint64_t)divi32<uint32_t>(reg_file[rs1], reg_file[rs2], 1), 32);
+						break;
+					case 0b110: // REMW
+						wb_data = sign_extend<uint64_t>(((uint64_t)divi32<int32_t>(signed_value32(reg_file[rs1]), signed_value32(reg_file[rs2]), 2) & MASK32), 32);
+						break;
+					case 0b111: // REMUW
+						wb_data = sign_extend<uint64_t>((uint64_t)divi32<uint32_t>(reg_file[rs1], reg_file[rs2], 3), 32);
+						break;
+					}
+					reg_file[rd] = wb_data;
+				}
+				else {
+					switch (func3) {
+					case 0b000: 
+						wb_data = static_cast<int32_t>((func7 == 0) ? (reg_file[rs1] + reg_file[rs2]) : (reg_file[rs1] - reg_file[rs2]));
+						break;
+					case 0b001: // SLLW
+						wb_data = static_cast<int32_t>((reg_file[rs1]) << ((reg_file[rs2]) & 0b11111));
+						break;
+					case 0b101: // SRLW
+						wb_data = static_cast<int32_t>((func7 == 0) ? ((reg_file[rs1]&0xffffffffu) >> (reg_file[rs2] & 31)) : ((static_cast<int32_t>(reg_file[rs1])) >> (reg_file[rs2] & 31)));
+						break;
+					}
+					reg_file[rd] = wb_data;
+				}
+				break;
 			case amo:
 				if (func3 == 0b010) { // AMO.W-32
 					load_addr = reg_file[rs1] & 0x00000000ffffffff;
