@@ -2125,11 +2125,7 @@ public:
             wb_data = reg_file[rs1] - reg_file[rs2];
             break;
           case 0b101: // SRA
-            wb_data = reg_file[rs1];
-            for (itr = 0; itr < (reg_file[rs2] & 0b111111); itr++)
-            {
-              wb_data = ((wb_data & ((1llu) << 63)) | ((wb_data) >> (1)));
-            }
+						wb_data = static_cast<int64_t>(reg_file[rs1]) >> (reg_file[rs2]&63);
             break;
           default:
             break;
