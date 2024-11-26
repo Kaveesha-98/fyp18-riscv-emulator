@@ -2169,14 +2169,14 @@ public:
         {
           switch (func3)
           {
-          case 0b000: // ADDW
-            wb_data = sign_extend<uint64_t>(((reg_file[rs1] + reg_file[rs2]) & MASK32), 32);
+          case 0b000: 
+            wb_data = static_cast<int32_t>(reg_file[rs1] + reg_file[rs2]);
             break;
           case 0b001: // SLLW
-            wb_data = sign_extend<uint64_t>(((reg_file[rs1]) << ((reg_file[rs2]) & 0b11111)) & MASK32, 32);
+            wb_data = static_cast<int32_t>((reg_file[rs1]) << ((reg_file[rs2]) & 0b11111));
             break;
           case 0b101: // SRLW
-            wb_data = sign_extend<uint64_t>((reg_file[rs1] & MASK32) >> ((reg_file[rs2]) & 0b11111), 32);
+            wb_data = static_cast<int32_t>((reg_file[rs1]&0xffffffffu) >> (reg_file[rs2] & 31));
             break;
           }
           reg_file[rd] = wb_data;
@@ -2209,7 +2209,7 @@ public:
           switch (func3)
           {
           case 0b000: // SUBW
-            wb_data = sign_extend<uint64_t>((((reg_file[rs1] & MASK32) - (reg_file[rs2] & MASK32)) & MASK32), 32);
+            wb_data = static_cast<int32_t>(reg_file[rs1] - reg_file[rs2]);
             break;
           case 0b101: // SRAW
 						wb_data = static_cast<int32_t>((static_cast<int32_t>(reg_file[rs1])) >> (reg_file[rs2] & 31));
