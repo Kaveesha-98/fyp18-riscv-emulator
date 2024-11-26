@@ -1925,85 +1925,38 @@ public:
           }
         }
         break;
-      case store:
-        store_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm_s, 12)) & 0x00000000ffffffff;
-        if (store_addr != FIFO_ADDR_TX)
-        {
-          if ((store_addr >= DRAM_BASE) & (store_addr < (DRAM_BASE + 0x9000000)))
-          {
-            store_data = memory.at((store_addr - DRAM_BASE) / 8);
-            switch (func3)
-            { // Setting lower n bits to 0 and adding storing value
-            case 0b000:
-              val = reg_file[rs2] & 0xFF;
-              ls_success = store_byte(store_addr, store_data, val, wb_data);
-              break; // SB  setting LSB 8 bit
-            case 0b001:
-              val = reg_file[rs2] & 0xFFFF;
-              ls_success = store_halfw(store_addr, store_data, val, wb_data);
-              break; // SH setting LSB 16 bit value
-            case 0b010:
-              val = reg_file[rs2] & 0xFFFFFFFF;
-              ls_success = store_word(store_addr, store_data, val, wb_data);
-              break; // SW setting LSB 32 bit value
-            case 0b011:
-              if ((store_addr % 8) == 0)
-              {
-                wb_data = reg_file[rs2];
-                ls_success = true;
-              }
-              else
-              {
-                ls_success = false;
-              }
-              break; // SD
-            default:
-              break;
-            }
-            if (!ls_success)
-            {
-              PC = excep_function(PC, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, cp);
-            }
-            else
-            {
-              memory.at((store_addr - DRAM_BASE) / 8) = wb_data;
-            }
-          }
-          else
-          {
-            if ((store_addr >= CLINT_BASE) & (store_addr <= (CLINT_BASE + CLINT_SIZE)))
-            {
-              uint64_t offset = store_addr - CLINT_BASE;
-              switch (offset)
-              {
-              case 0x4000:
-                mtimecmp = reg_file[rs2];
-                mip.STIP = 0;
-                break;
-							case 0x0000:
-								// This is the MSIP, which doesn't do anything yet
-								break;
-              default:
-								debug("[WARNING-EMULATOR] undefined store address store_addr: 0x%08lx\n", store_addr); 
-                break;
-              }
-            }
-            else
-            {
-              if (store_addr - DRAM_BASE == FIFO_ADDR_TX)
-              {
-                cout << (char)reg_file[rs2] << flush;
-              } else {
-								debug("[WARNING-EMULATOR] undefined store address store_addr: 0x%08lx\n", store_addr); 
-							}
-            }
-          }
-        }
-        else
-        {
-          cout << (char)reg_file[rs2] << flush;
-        }
-        break;
+			case store:
+				store_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm_s, 12)) & 0x00000000ffffffff;
+				if ((store_addr >= DRAM_BASE) & (store_addr < (DRAM_BASE + 0x9000000))) {
+					store_data = memory.at((store_addr - DRAM_BASE) / 8);
+					wb_data = store_data & ~((0xfffffffffffffffflu >> (64 - (1 << (3 + (func3&3))))) << ((store_addr&7) << 3));
+					val = (reg_file[rs2] & (0xfffffffffffffffflu >> (64 - (1 << (3 + (func3&3)))))) << ((store_addr&7) << 3);
+					wb_data |= val;
+					ls_success = (store_addr & ((1 << (func3&3)) - 1)) == 0; 
+					if (!ls_success) {
+						PC = excep_function(PC, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, cp);
+					} else {
+						memory.at((store_addr - DRAM_BASE) / 8) = wb_data;
+					}
+				} else {
+					if ((store_addr >= CLINT_BASE) & (store_addr <= (CLINT_BASE + CLINT_SIZE))) {
+						switch (store_addr - CLINT_BASE) {
+						case 0x4000:
+							mtimecmp = reg_file[rs2];
+							mip.STIP = 0;
+							break;
+						case 0x0000:
+							// This is the MSIP, which doesn't do anything yet
+							break;
+						default:
+							debug("[WARNING-EMULATOR] undefined store address store_addr: 0x%08lx\n", store_addr); 
+							break;
+						}
+					} else if (store_addr == FIFO_ADDR_TX) {
+						cout << (char)reg_file[rs2] << flush;
+					} else { debug("[WARNING-EMULATOR] undefined store address store_addr: 0x%08lx\n", store_addr); }
+				}
+				break;
 			case iops:
 			case rops:
 				store_data = (opcode == rops) ? (reg_file[rs2]) : (((func3&3)!=1)?sign_extend<uint64_t>(imm11_0, 12):(imm11_0&63)); // temp variable
