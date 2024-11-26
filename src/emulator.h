@@ -2004,92 +2004,51 @@ public:
           cout << (char)reg_file[rs2] << flush;
         }
         break;
-      case iops:
-        switch (func3)
-        {
-        case 0b000:
-          wb_data = reg_file[rs1] +  signed_value(sign_extend<uint64_t>(imm11_0, 12)); // ADDI
-          break;
-        case 0b010:
-          wb_data = (signed_value(reg_file[rs1]) < signed_value(sign_extend<uint64_t>(imm11_0, 12))) ? 1 : 0; // SLTI
-          break;
-        case 0b011:
-          wb_data = (reg_file[rs1] < sign_extend<uint64_t>(imm11_0, 12)) ? 1 : 0; // SLTIU
-          break;
-        case 0b111:
-          wb_data = reg_file[rs1] & sign_extend<uint64_t>(imm11_0, 12); // ANDI
-          break;
-        case 0b110:
-          wb_data = reg_file[rs1] | sign_extend<uint64_t>(imm11_0, 12); // ORI
-          break;
-        case 0b100:
-          wb_data = reg_file[rs1] ^ sign_extend<uint64_t>(imm11_0, 12); // XORI
-          break;
-        case 0b001:
-          wb_data = reg_file[rs1] << (imm11_0 & 0b111111); // SLLI
-          break;
-        case 0b101:
-          if ((func7 >> 1) == 0b000000)
-          {
-            wb_data = reg_file[rs1] >> ((imm11_0) & 0b111111); // SRLI
-          }
-          else if ((func7 >> 1) == 0b010000)
-          {
-            wb_data = reg_file[rs1];
-            for (itr = 0; itr < (imm11_0 & 0b111111); itr++)
-            {
-              wb_data = (wb_data & (1llu << 63)) | ((wb_data) >> (1)); // SRAI
-            }
-          }
-          break;
-        default:
-          break;
-        }
-        reg_file[rd] = wb_data;
-        break;
+			case iops:
 			case rops:
-				if (func7 == 0b0000001) {
+				store_data = (opcode == rops) ? (reg_file[rs2]) : (((func3&3)!=1)?sign_extend<uint64_t>(imm11_0, 12):(imm11_0&63)); // temp variable
+				if ((opcode == rops) && (func7 == 0b0000001)) {
 					switch (func3) {
 					case 0b000: // MUL
-						mult_temp = reg_file[rs1] * reg_file[rs2];
+						mult_temp = reg_file[rs1] * store_data;
 						reg_file[rd] = (mult_temp)&MASK64;
 						break;
 					case 0b001: // MULH
-						mult_temp = ((__uint128_t)signed_value(reg_file[rs1]) * (__uint128_t)signed_value(reg_file[rs2]));
+						mult_temp = ((__uint128_t)signed_value(reg_file[rs1]) * (__uint128_t)signed_value(store_data));
 						reg_file[rd] = ((mult_temp) >> 64) & MASK64;
 						break;
 					case 0b010: // MULHSU
-						mult_temp = ((__uint128_t)signed_value(reg_file[rs1]) * (__uint128_t)reg_file[rs2]);
+						mult_temp = ((__uint128_t)signed_value(reg_file[rs1]) * (__uint128_t)store_data);
 						reg_file[rd] = ((mult_temp) >> 64) & MASK64;
 						break;
 					case 0b011: // MULHU
-						mult_temp = (__uint128_t)reg_file[rs1] * (__uint128_t)reg_file[rs2];
+						mult_temp = (__uint128_t)reg_file[rs1] * (__uint128_t)store_data;
 						reg_file[rd] = ((mult_temp) >> 64) & MASK64;
 						break;
 					case 0b100: // DIV
-						reg_file[rd] = (uint64_t)divi<int64_t>(signed_value(reg_file[rs1]), signed_value(reg_file[rs2]), 0);
+						reg_file[rd] = (uint64_t)divi<int64_t>(signed_value(reg_file[rs1]), signed_value(store_data), 0);
 						break;
 					case 0b101: // DIVU
-						reg_file[rd] = divi<uint64_t>(reg_file[rs1], reg_file[rs2], 1);
+						reg_file[rd] = divi<uint64_t>(reg_file[rs1], store_data, 1);
 						break;
 					case 0b110: // REM
-						reg_file[rd] = (uint64_t)divi<int64_t>(signed_value(reg_file[rs1]), signed_value(reg_file[rs2]), 2);
+						reg_file[rd] = (uint64_t)divi<int64_t>(signed_value(reg_file[rs1]), signed_value(store_data), 2);
 						break;
 					case 0b111: // REMU
-						reg_file[rd] = divi<uint64_t>(reg_file[rs1], reg_file[rs2], 3);
+						reg_file[rd] = divi<uint64_t>(reg_file[rs1], store_data, 3);
 						break;
 					}
 				}
 				else {
 					switch (func3) {
-					case 0b000: wb_data = (func7 == 0) ? (reg_file[rs1] + reg_file[rs2]) : (reg_file[rs1] - reg_file[rs2]); break; // ADD & SUB
-					case 0b010: wb_data = (signed_value(reg_file[rs1]) < signed_value(reg_file[rs2])) ? 1 : 0; break; // SLT
-					case 0b011: wb_data = (reg_file[rs1] < reg_file[rs2]) ? 1 : 0; break; // SLTU
-					case 0b111: wb_data = reg_file[rs1] & reg_file[rs2]; break; // AND
-					case 0b110: wb_data = reg_file[rs1] | reg_file[rs2]; break; // OR
-					case 0b100: wb_data = reg_file[rs1] ^ reg_file[rs2]; break; // XOR
-					case 0b001: wb_data = ((reg_file[rs1]) << (reg_file[rs2] & 0b111111)); break; // SLL
-					case 0b101: wb_data = (func7 == 0) ? (reg_file[rs1] >> (reg_file[rs2] & 63)) : (static_cast<int64_t>(reg_file[rs1]) >> (reg_file[rs2]&63)); break; // SRL
+					case 0b000: wb_data = ((opcode != rops) || (func7 == 0)) ? (reg_file[rs1] + store_data) : (reg_file[rs1] - store_data); break; // ADD & SUB
+					case 0b010: wb_data = (signed_value(reg_file[rs1]) < signed_value(store_data)) ? 1 : 0; break; // SLT
+					case 0b011: wb_data = (reg_file[rs1] < store_data) ? 1 : 0; break; // SLTU
+					case 0b111: wb_data = reg_file[rs1] & store_data; break; // AND
+					case 0b110: wb_data = reg_file[rs1] | store_data; break; // OR
+					case 0b100: wb_data = reg_file[rs1] ^ store_data; break; // XOR
+					case 0b001: wb_data = ((reg_file[rs1]) << (store_data & 0b111111)); break; // SLL
+					case 0b101: wb_data = ((func7 >> 1) == 0) ? (reg_file[rs1] >> (store_data & 63)) : (static_cast<int64_t>(reg_file[rs1]) >> (store_data&63)); break; // SRL
 					default:
 						break;
 					}
