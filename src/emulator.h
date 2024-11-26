@@ -2047,33 +2047,6 @@ public:
         }
         reg_file[rd] = wb_data;
         break;
-      case iops64:
-        switch (func3)
-        {
-        case 0b000: // ADDIW
-          wb_data = sign_extend<uint64_t>(MASK32 & (reg_file[rs1] + sign_extend<uint64_t>(imm11_0, 12)), 32);
-          break;
-        case 0b001: // SLLIW
-          wb_data = sign_extend<uint64_t>(MASK32 & (reg_file[rs1] << (imm11_0 & 0b11111)), 32);
-          break;
-        case 0b101:
-          if ((func7 >> 1) == 0b000000)
-          { // SRLIW
-            wb_data = sign_extend<uint64_t>(MASK32 & ((reg_file[rs1] & MASK32) >> (imm11_0 & 0b11111)), 32);
-          }
-          else if ((func7 >> 1) == 0b010000)
-          {
-            wb_data = reg_file[rs1] & MASK32;
-            for (itr = 0; itr < (imm11_0 & 0b11111); itr++)
-            {
-              wb_data = ((wb_data & ((1llu) << 31)) | ((wb_data) >> (1))); // SRAIW
-            }
-            wb_data = sign_extend<uint64_t>(MASK32 & wb_data, 32);
-          }
-          break;
-        }
-        reg_file[rd] = wb_data;
-        break;
       case rops:
         if (func7 == 0b0000000)
         {
@@ -2164,23 +2137,25 @@ public:
           reg_file[rd] = wb_data;
         }
         break;
-			case rops64: // 32 bit instructions exclusive for rv64i
-				if (func7 == 0b0000001) {
+			case iops64: // 32 bit instructions exclusive for rv64i
+			case rops64:
+				store_data = (opcode == rops64) ? (reg_file[rs2]) : (((func3&3)!=1)?sign_extend<uint64_t>(imm11_0, 12):(imm11_0&31)); // temp variable
+				if ((opcode == rops64) && (func7 == 0b0000001)) {
 					switch (func3) {
 					case 0b000: // MULW
-						wb_data = sign_extend<uint64_t>(((reg_file[rs1] & MASK32) * (reg_file[rs2] & MASK32)) & MASK32, 32);
+						wb_data = sign_extend<uint64_t>(((reg_file[rs1] & MASK32) * (store_data & MASK32)) & MASK32, 32);
 						break;
 					case 0b100: // DIVW
-						wb_data = sign_extend<uint64_t>(MASK32 & ((uint64_t)divi32<int32_t>(signed_value32(reg_file[rs1] & MASK32), signed_value32(reg_file[rs2] & MASK32), 0)), 32);
+						wb_data = sign_extend<uint64_t>(MASK32 & ((uint64_t)divi32<int32_t>(signed_value32(reg_file[rs1] & MASK32), signed_value32(store_data & MASK32), 0)), 32);
 						break;
 					case 0b101: // DIVUW
-						wb_data = sign_extend<uint64_t>((uint64_t)divi32<uint32_t>(reg_file[rs1], reg_file[rs2], 1), 32);
+						wb_data = sign_extend<uint64_t>((uint64_t)divi32<uint32_t>(reg_file[rs1], store_data, 1), 32);
 						break;
 					case 0b110: // REMW
-						wb_data = sign_extend<uint64_t>(((uint64_t)divi32<int32_t>(signed_value32(reg_file[rs1]), signed_value32(reg_file[rs2]), 2) & MASK32), 32);
+						wb_data = sign_extend<uint64_t>(((uint64_t)divi32<int32_t>(signed_value32(reg_file[rs1]), signed_value32(store_data), 2) & MASK32), 32);
 						break;
 					case 0b111: // REMUW
-						wb_data = sign_extend<uint64_t>((uint64_t)divi32<uint32_t>(reg_file[rs1], reg_file[rs2], 3), 32);
+						wb_data = sign_extend<uint64_t>((uint64_t)divi32<uint32_t>(reg_file[rs1], store_data, 3), 32);
 						break;
 					}
 					reg_file[rd] = wb_data;
@@ -2188,13 +2163,13 @@ public:
 				else {
 					switch (func3) {
 					case 0b000: 
-						wb_data = static_cast<int32_t>((func7 == 0) ? (reg_file[rs1] + reg_file[rs2]) : (reg_file[rs1] - reg_file[rs2]));
+						wb_data = static_cast<int32_t>(((opcode != rops64) || (func7 == 0)) ? (reg_file[rs1] + store_data) : (reg_file[rs1] - store_data));
 						break;
 					case 0b001: // SLLW
-						wb_data = static_cast<int32_t>((reg_file[rs1]) << ((reg_file[rs2]) & 0b11111));
+						wb_data = static_cast<int32_t>((reg_file[rs1]) << ((store_data) & 0b11111));
 						break;
 					case 0b101: // SRLW
-						wb_data = static_cast<int32_t>((func7 == 0) ? ((reg_file[rs1]&0xffffffffu) >> (reg_file[rs2] & 31)) : ((static_cast<int32_t>(reg_file[rs1])) >> (reg_file[rs2] & 31)));
+						wb_data = static_cast<int32_t>((func7 == 0) ? ((reg_file[rs1]&0xffffffffu) >> (store_data & 31)) : ((static_cast<int32_t>(reg_file[rs1])) >> (store_data & 31)));
 						break;
 					}
 					reg_file[rd] = wb_data;
