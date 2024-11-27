@@ -1555,111 +1555,83 @@ public:
   {
   }
 
-  #ifndef LOCKSTEP
-  /**
-   * Sets up interrupts to execute instructions next
-   * i.e.: sets up *TIP, *SIP, *EIP
-   */
-  void set_interrupts()
-  {
-    mip.MTIP = (mtime >= mtimecmp);
+	#ifndef LOCKSTEP
+	/**
+	 * Sets up interrupts to execute instructions next
+	 * i.e.: sets up *TIP, *SIP, *EIP
+	 */
+	void set_interrupts() {
+		mip.MTIP = (mtime >= mtimecmp);
 
-    if (signed_value(PC) < 0)
-    {
-      INS_ACC_FAULT = true;
-    }
+		if (signed_value(PC) < 0) {
+			INS_ACC_FAULT = true;
+		}
 
-    if (LD_ACC_FAULT)
-    {
-      LD_ACC_FAULT = false;
-      PC = excep_function(PC, CAUSE_LOAD_ACCESS, CAUSE_LOAD_ACCESS, CAUSE_LOAD_ACCESS, cp);
-    }
-    else if (mie.MEIE && mip.MEIP)
-    {
-      PC = interrupt_function(PC, CAUSE_MACHINE_EXT_INT, cp);
-    }
-    else if (mie.MSIE & mip.MSIP)
-    {
-      PC = interrupt_function(PC, CAUSE_MACHINE_SOFT_INT, cp);
-    }
-    else if (mie.MTIE && mip.MTIP)
-    {
-      PC = interrupt_function(PC, CAUSE_MACHINE_TIMER_INT, cp);
-    }
-    else if (mie.UEIE & mip.UEIP)
-    {
-      PC = interrupt_function(PC, CAUSE_USER_EXT_INT, cp);
-    }
-    else if (mie.UTIE & mip.UTIP)
-    {
-      PC = interrupt_function(PC, CAUSE_USER_TIMER_INT, cp);
-    }
-    else if (mie.USIE & mip.USIP)
-    {
-      PC = interrupt_function(PC, CAUSE_USER_SOFT_INT, cp);
-    }
-    else if (INS_ACC_FAULT)
-    {
-      INS_ACC_FAULT = false;
-      PC = excep_function(PC, CAUSE_FETCH_ACCESS, CAUSE_FETCH_ACCESS, CAUSE_FETCH_ACCESS, cp);
-    }
-    else if (ILL_INS)
-    {
-      ILL_INS = false;
-      PC = excep_function(PC, CAUSE_ILLEGAL_INSTRUCTION, CAUSE_ILLEGAL_INSTRUCTION, CAUSE_ILLEGAL_INSTRUCTION, cp);
-    }
-    else if (INS_ADDR_MISSALIG)
-    {
-      INS_ADDR_MISSALIG = false;
-      PC = excep_function(PC, CAUSE_MISALIGNED_FETCH, CAUSE_MISALIGNED_FETCH, CAUSE_MISALIGNED_FETCH, cp);
-    }
-    else if (EBREAK)
-    {
-      EBREAK = false;
-      // PC = excep_function(PC,CAUSE_BREAKPOINT,CAUSE_BREAKPOINT,CAUSE_BREAKPOINT,cp);
-    }
-    else if (LD_ADDR_MISSALIG)
-    {
-      LD_ADDR_MISSALIG = false;
-      PC = excep_function(PC, CAUSE_MISALIGNED_LOAD, CAUSE_MISALIGNED_LOAD, CAUSE_MISALIGNED_LOAD, cp);
-    }
-    else if (STORE_ADDR_MISSALIG)
-    {
-      STORE_ADDR_MISSALIG = false;
-      PC = excep_function(PC, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, cp);
-    }
-  }
-  #else
-  // this sets up timer interrupt
-  // returns a positive integer [error code] if its not possible to set up interrupt
-  int set_interrupts(__uint64_t peripheral_read = 1, __uint64_t mepc = 0) {
-    // emulator-simulator state semantic mis matches
-    // look at the pc definitions when comparing state
-    // step();
-    if (is_peripheral_read()) {
-      // outFile << "peripheral read after interrupt at: " << hex << get_pc();
-      __uint32_t p_instruction = get_instruction();
-      step();
-      set_register_with_value((p_instruction>>7)&0x1f, peripheral_read);
-    } else{
-      step();
-    }
-    while (
-      ((get_instruction() & 0x0000007f) == 0x73) && 
-      (get_instruction() & 0x00007000) && (get_pc() != mepc)
-    )
-    {
-      step();
-    }
+		if (LD_ACC_FAULT) {
+			LD_ACC_FAULT = false;
+			PC = excep_function(PC, CAUSE_LOAD_ACCESS, CAUSE_LOAD_ACCESS, CAUSE_LOAD_ACCESS, cp);
+		} else if (mie.MEIE && mip.MEIP) {
+			PC = interrupt_function(PC, CAUSE_MACHINE_EXT_INT, cp);
+		} else if (mie.MSIE & mip.MSIP) {
+			PC = interrupt_function(PC, CAUSE_MACHINE_SOFT_INT, cp);
+		} else if (mie.MTIE && mip.MTIP) {
+			PC = interrupt_function(PC, CAUSE_MACHINE_TIMER_INT, cp);
+		} else if (mie.UEIE & mip.UEIP) {
+			PC = interrupt_function(PC, CAUSE_USER_EXT_INT, cp);
+		} else if (mie.UTIE & mip.UTIP) {
+			PC = interrupt_function(PC, CAUSE_USER_TIMER_INT, cp);
+		} else if (mie.USIE & mip.USIP) {
+			PC = interrupt_function(PC, CAUSE_USER_SOFT_INT, cp);
+		} else if (INS_ACC_FAULT) {
+			INS_ACC_FAULT = false;
+			PC = excep_function(PC, CAUSE_FETCH_ACCESS, CAUSE_FETCH_ACCESS, CAUSE_FETCH_ACCESS, cp);
+		} else if (ILL_INS) {
+			ILL_INS = false;
+			PC = excep_function(PC, CAUSE_ILLEGAL_INSTRUCTION, CAUSE_ILLEGAL_INSTRUCTION, CAUSE_ILLEGAL_INSTRUCTION, cp);
+		} else if (INS_ADDR_MISSALIG) {
+			INS_ADDR_MISSALIG = false;
+			PC = excep_function(PC, CAUSE_MISALIGNED_FETCH, CAUSE_MISALIGNED_FETCH, CAUSE_MISALIGNED_FETCH, cp);
+		} else if (EBREAK) {
+			EBREAK = false;
+			// PC = excep_function(PC,CAUSE_BREAKPOINT,CAUSE_BREAKPOINT,CAUSE_BREAKPOINT,cp);
+		} else if (LD_ADDR_MISSALIG) {
+			LD_ADDR_MISSALIG = false;
+			PC = excep_function(PC, CAUSE_MISALIGNED_LOAD, CAUSE_MISALIGNED_LOAD, CAUSE_MISALIGNED_LOAD, cp);
+		} else if (STORE_ADDR_MISSALIG) {
+			STORE_ADDR_MISSALIG = false;
+			PC = excep_function(PC, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, cp);
+		}
+	}
+	#else
+	// this sets up timer interrupt
+	// returns a positive integer [error code] if its not possible to set up interrupt
+	int set_interrupts(__uint64_t peripheral_read = 1, __uint64_t mepc = 0) {
+		// emulator-simulator state semantic mis matches
+		// look at the pc definitions when comparing state
+		// step();
+		if (is_peripheral_read()) {
+			// outFile << "peripheral read after interrupt at: " << hex << get_pc();
+			__uint32_t p_instruction = get_instruction();
+			step();
+			set_register_with_value((p_instruction>>7)&0x1f, peripheral_read);
+		} else{
+			step();
+		}
+		while (
+			((get_instruction() & 0x0000007f) == 0x73) && 
+			(get_instruction() & 0x00007000) && (get_pc() != mepc)
+		) {
+			step();
+		}
 
-    // mip.MTIP = 1; //(mtime >= mtimecmp);
-    if (!mie.MTIE || !mstatus.mie) { return 1; }
+		// mip.MTIP = 1; //(mtime >= mtimecmp);
+		if (!mie.MTIE || !mstatus.mie) { return 1; }
 
-    PC = interrupt_function(PC, CAUSE_MACHINE_TIMER_INT, cp);
-    return 0;
-  }
+		PC = interrupt_function(PC, CAUSE_MACHINE_TIMER_INT, cp);
+		return 0;
+	}
 
-  #endif
+	#endif
 
 	/**
 	 * Steps through one architectural change of pc
