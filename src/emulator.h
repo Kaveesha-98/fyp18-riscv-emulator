@@ -1406,129 +1406,125 @@ private:
   }
 
 public:
-  uint64_t get_mstatus() { return mstatus.read_reg(); }
+	uint64_t get_mstatus() { return mstatus.read_reg(); }
 
-  vector<uint64_t> reg_file = vector<uint64_t>(32);          // register file
-  //*Line 1021: Add F registers
-  vector<float> freg_file = vector<float>(32);        // F register file
+	vector<uint64_t> reg_file = vector<uint64_t>(32);          // register file
+	//*Line 1021: Add F registers
+	vector<float> freg_file = vector<float>(32);        // F register file
 
-  //*Line 1023 Add Fregs to show state
-  void show_state() {
-    printf("pc: %016lx mstatus: %016lx mie: %016lx mcause: %016lx mepc: %016lx rx_ready: %d\n\
-    x00: %016lx x01: %016lx x02: %016lx x03: %016lx x04: %016lx x05: %016lx x06: %016lx x07: %016lx\n\
-    x08: %016lx x09: %016lx x10: %016lx x11: %016lx x12: %016lx x13: %016lx x14: %016lx x15: %016lx\n\
-    x16: %016lx x17: %016lx x18: %016lx x19: %016lx x20: %016lx x21: %016lx x22: %016lx x23: %016lx\n\
-    x24: %016lx x25: %016lx x26: %016lx x27: %016lx x28: %016lx x29: %016lx x30: %016lx x31: %016lx\n\
-    fcsr: %016lx\n\
-    f00: %016lf f01: %016lf f02: %016lf f03: %016lf f04: %016lf f05: %016lf f06: %016lf f07: %016lf\n\
-    f08: %016lf f09: %016lf f10: %016lf f11: %016lf f12: %016lf f13: %016lf f14: %016lf f15: %016lf\n\
-    f16: %016lf f17: %016lf f18: %016lf f19: %016lf f20: %016lf f21: %016lf f22: %016lf f23: %016lf\n\
-    f24: %016lf f25: %016lf f26: %016lf f27: %016lf f28: %016lf f29: %016lf f30: %016lf f31: %016lf\n",
-    PC, mstatus.read_reg(), mie.read_reg(), mcause.read_reg(), mepc, 1,
-    reg_file[0], reg_file[1], reg_file[2], reg_file[3], reg_file[4], reg_file[5], reg_file[6], reg_file[7], 
-    reg_file[8], reg_file[9], reg_file[10], reg_file[11], reg_file[12], reg_file[13], reg_file[14], reg_file[15],
-    reg_file[16], reg_file[17], reg_file[18], reg_file[19], reg_file[20], reg_file[21], reg_file[22], reg_file[23],
-    reg_file[24], reg_file[25], reg_file[26], reg_file[27], reg_file[28], reg_file[29], reg_file[30], reg_file[31],
-    fcsr.read_reg(),
-    freg_file[0], freg_file[1], freg_file[2], freg_file[3], freg_file[4], freg_file[5], freg_file[6], freg_file[7], 
-    freg_file[8], freg_file[9], freg_file[10], freg_file[11], freg_file[12], freg_file[13], freg_file[14], freg_file[15],
-    freg_file[16], freg_file[17], freg_file[18], freg_file[19], freg_file[20], freg_file[21], freg_file[22], freg_file[23],
-    freg_file[24], freg_file[25], freg_file[26], freg_file[27], freg_file[28], freg_file[29], freg_file[30], freg_file[31]);
-  }
+	//*Line 1023 Add Fregs to show state
+	void show_state() {
+		printf("pc: %016lx mstatus: %016lx mie: %016lx mcause: %016lx mepc: %016lx rx_ready: %d\n\
+		x00: %016lx x01: %016lx x02: %016lx x03: %016lx x04: %016lx x05: %016lx x06: %016lx x07: %016lx\n\
+		x08: %016lx x09: %016lx x10: %016lx x11: %016lx x12: %016lx x13: %016lx x14: %016lx x15: %016lx\n\
+		x16: %016lx x17: %016lx x18: %016lx x19: %016lx x20: %016lx x21: %016lx x22: %016lx x23: %016lx\n\
+		x24: %016lx x25: %016lx x26: %016lx x27: %016lx x28: %016lx x29: %016lx x30: %016lx x31: %016lx\n\
+		fcsr: %016lx\n\
+		f00: %016lf f01: %016lf f02: %016lf f03: %016lf f04: %016lf f05: %016lf f06: %016lf f07: %016lf\n\
+		f08: %016lf f09: %016lf f10: %016lf f11: %016lf f12: %016lf f13: %016lf f14: %016lf f15: %016lf\n\
+		f16: %016lf f17: %016lf f18: %016lf f19: %016lf f20: %016lf f21: %016lf f22: %016lf f23: %016lf\n\
+		f24: %016lf f25: %016lf f26: %016lf f27: %016lf f28: %016lf f29: %016lf f30: %016lf f31: %016lf\n",
+		PC, mstatus.read_reg(), mie.read_reg(), mcause.read_reg(), mepc, 1,
+		reg_file[0], reg_file[1], reg_file[2], reg_file[3], reg_file[4], reg_file[5], reg_file[6], reg_file[7], 
+		reg_file[8], reg_file[9], reg_file[10], reg_file[11], reg_file[12], reg_file[13], reg_file[14], reg_file[15],
+		reg_file[16], reg_file[17], reg_file[18], reg_file[19], reg_file[20], reg_file[21], reg_file[22], reg_file[23],
+		reg_file[24], reg_file[25], reg_file[26], reg_file[27], reg_file[28], reg_file[29], reg_file[30], reg_file[31],
+		fcsr.read_reg(),
+		freg_file[0], freg_file[1], freg_file[2], freg_file[3], freg_file[4], freg_file[5], freg_file[6], freg_file[7], 
+		freg_file[8], freg_file[9], freg_file[10], freg_file[11], freg_file[12], freg_file[13], freg_file[14], freg_file[15],
+		freg_file[16], freg_file[17], freg_file[18], freg_file[19], freg_file[20], freg_file[21], freg_file[22], freg_file[23],
+		freg_file[24], freg_file[25], freg_file[26], freg_file[27], freg_file[28], freg_file[29], freg_file[30], freg_file[31]);
+	}
 
-  __uint64_t get_pc() { return PC; }
+	__uint64_t get_pc() { return PC; }
 
-  __uint64_t fetch_long(__uint64_t offset) { return memory.at(offset / 8); }
+	__uint64_t fetch_long(__uint64_t offset) { return memory.at(offset / 8); }
 
-  int is_peripheral_read() {
-    __uint32_t instruction = fetch_instruction(PC);
-    __uint64_t load_addr = reg_file[(instruction >> 15) & 0x1f] + (((__uint64_t)((__int32_t) instruction)) >> 20);
-    if ((instruction & 0x7f) != 0b0000011) { return 0; } 
-    if ((load_addr >= DRAM_BASE) && (load_addr <= (DRAM_BASE + 0x9000000))) { return 0; } else { return 1; }
-  }
+	int is_peripheral_read() {
+		__uint32_t instruction = fetch_instruction(PC);
+		__uint64_t load_addr = reg_file[(instruction >> 15) & 0x1f] + (((__uint64_t)((__int32_t) instruction)) >> 20);
+		if ((instruction & 0x7f) != 0b0000011) { return 0; } 
+		if ((load_addr >= DRAM_BASE) && (load_addr <= (DRAM_BASE + 0x9000000))) { return 0; } else { return 1; }
+	}
 
-  __uint32_t read_address() {
-    __uint32_t instruction = fetch_instruction(PC);
-    return reg_file[(instruction >> 15) & 0x1f] + (((__uint64_t)((__int32_t) instruction)) >> 20);
-  }
+	__uint32_t read_address() {
+		__uint32_t instruction = fetch_instruction(PC);
+		return reg_file[(instruction >> 15) & 0x1f] + (((__uint64_t)((__int32_t) instruction)) >> 20);
+	}
 
-  __uint32_t get_instruction() {
-    return fetch_instruction(PC);
-  }
+	__uint32_t get_instruction() {
+		return fetch_instruction(PC);
+	}
 
-  void set_register_with_value(__uint8_t rd,__uint64_t value) {
-    reg_file[rd] = value;
-  }
+	void set_register_with_value(__uint8_t rd,__uint64_t value) {
+		reg_file[rd] = value;
+	}
 
-  /**
-   * Initializes the emulator, i.e.
-   * 1. Setting the pc to the first instruction to be executed
-   * 2. Setting gprs and csrs
-   * 3. Initializes the memory with the image of the program
-   * @param image_name filename of the kernel image to be loaded to
-   *  emulator memory
-   * return 0 - to signal an error
-   */
-  int init(string image_name)
-  {
-    ifstream infile(image_name, ios::binary);
-    printf("stepping\n");
-    if (!infile.good())
-    {
+	/**
+	 * Initializes the emulator, i.e.
+	 * 1. Setting the pc to the first instruction to be executed
+	 * 2. Setting gprs and csrs
+	 * 3. Initializes the memory with the image of the program
+	 * @param image_name filename of the kernel image to be loaded to
+	 *  emulator memory
+	 * return 0 - to signal an error
+	 */
+	int init(string image_name) {
+		ifstream infile(image_name, ios::binary);
+		printf("stepping\n");
+		if (!infile.good()) {
 			fprintf(stderr, "Could not open image file! \n");
-      exit(0);
-    }
+			exit(0);
+		}
 
-    // Get the file size by seeking to the end and then getting the position
-    infile.seekg(0, ios::end);
-    streampos fileSize = infile.tellg();
-    infile.seekg(0, ios::beg);
+		// Get the file size by seeking to the end and then getting the position
+		infile.seekg(0, ios::end);
+		streampos fileSize = infile.tellg();
+		infile.seekg(0, ios::beg);
 
-    // Create a vector to store the binary data
-    vector<unsigned long> byte_memory(fileSize);
+		// Create a vector to store the binary data
+		vector<unsigned long> byte_memory(fileSize);
 
-    // Read the binary data into the vector
-    infile.read(reinterpret_cast<char *>(byte_memory.data()), fileSize);
+		// Read the binary data into the vector
+		infile.read(reinterpret_cast<char *>(byte_memory.data()), fileSize);
 
-    infile.close();
-    unsigned long pointer_end = (fileSize / 8) - 1;
-    unsigned long long_jump = 0;
-    for (const uint64_t data : byte_memory)
-    {
-      memory.at(long_jump) = (static_cast<unsigned long>(data));
-      // printf("%lx\n", static_cast<unsigned long>(address));
-      if ((long_jump++) >= pointer_end)
-      {
-        break;
-      }
-    }
+		infile.close();
+		unsigned long pointer_end = (fileSize / 8) - 1;
+		unsigned long long_jump = 0;
+		for (const uint64_t data : byte_memory) {
+			memory.at(long_jump) = (static_cast<unsigned long>(data));
+			// printf("%lx\n", static_cast<unsigned long>(address));
+			if ((long_jump++) >= pointer_end) {
+				break;
+			}
+		}
 
-    memory.at(MTIME_ADDR / 8) = 0;
-    memory.at(MTIMECMP_ADDR / 8) = -1;
+		memory.at(MTIME_ADDR / 8) = 0;
+		memory.at(MTIMECMP_ADDR / 8) = -1;
 
-    PC = DRAM_BASE;
-    PC_phy = 0;
-    instruction = 0;
+		PC = DRAM_BASE;
+		PC_phy = 0;
+		instruction = 0;
 
-    return 1;
-  }
+		return 1;
+	}
 
-  /**
-   * Perform a memory read for an instruction
-   * @param PC pc of the instruction
-   */
-  __uint64_t fetch_instruction(__uint64_t PC) {
-    PC_phy = PC - DRAM_BASE;
+	/**
+	 * Perform a memory read for an instruction
+	 * @param PC pc of the instruction
+	 */
+	__uint64_t fetch_instruction(__uint64_t PC) {
+		PC_phy = PC - DRAM_BASE;
 
-    if (PC % 4 == 0) {
-      instruction = getINST(PC_phy / 4, &memory);
-      return instruction;
-    } else {
-      INS_ADDR_MISSALIG = true;
-      PC -= PC % 4;
-    }
-    return 0UL;
-  }
+		if (PC % 4 == 0) {
+			instruction = getINST(PC_phy / 4, &memory);
+			return instruction;
+		} else {
+			INS_ADDR_MISSALIG = true;
+			PC -= PC % 4;
+		}
+		return 0UL;
+	}
 
 	/**
 	 * Perform a memory read for a data fetch, always read 8 bytes.
