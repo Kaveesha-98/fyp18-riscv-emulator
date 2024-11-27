@@ -1724,61 +1724,38 @@ public:
       funt5 = ((instruction) >> 27) & 0b11111;
       rs3 = ((instruction) >> 27) & 0b11111;
 
-      switch (opcode)
-      {
-      case lui:
-        wb_data = sign_extend<uint64_t>((instruction & 0xFFFFF000), 32);
-        reg_file[rd] = wb_data;
-        break;
-      case auipc:
-        wb_data = (PC - 4) + sign_extend<uint64_t>(((imm31_12) << 12), 32);
-        reg_file[rd] = wb_data;
-        break;
-      case jump:
-        wb_data = PC;
-        PC = (PC - 4) + sign_extend<uint64_t>(imm_j, 21); // 21 bits sign extend
-        if (PC % 4 == 0)
-        {
-          reg_file[rd] = wb_data; // PC + 4 to rd
-        }
-        break;
-      case jumpr:
-        wb_data = PC;
-        PC = (reg_file[rs1] + sign_extend<uint64_t>(imm11_0, 12)) & 0xFFFFFFFFFFFFFFFE; // setting LSB to 0 as spec page 20
-        if (PC % 4 == 0)
-        {
-          reg_file[rd] = wb_data; // PC + 4 to rd
-        }
-        break;
-      case cjump:
-        switch (func3)
-        {
-        case 0b000:
-          branch = reg_file[rs1] == reg_file[rs2];
-          break; // BEQ
-        case 0b001:
-          branch = (reg_file[rs1] != reg_file[rs2]);
-          break; // BNE
-        case 0b100:
-          branch = (signed_value(reg_file[rs1]) < signed_value(reg_file[rs2]));
-          break; // BLT
-        case 0b101:
-          branch = (signed_value(reg_file[rs1]) >= signed_value(reg_file[rs2]));
-          break; // BGE
-        case 0b110:
-          branch = (reg_file[rs1] < reg_file[rs2]);
-          break; // BLTU
-        case 0b111:
-          branch = (reg_file[rs1] >= reg_file[rs2]);
-          break; // BGEU
-        default:
-          break;
-        }
-        if (branch)
-        {
-          PC = PC - 4 + sign_extend<uint64_t>(imm_b, 13);
-        }
-        break;
+			switch (opcode) {
+			case lui:
+				wb_data = sign_extend<uint64_t>((instruction & 0xFFFFF000), 32);
+				reg_file[rd] = wb_data;
+				break;
+			case auipc:
+				wb_data = (PC - 4) + sign_extend<uint64_t>(((imm31_12) << 12), 32);
+				reg_file[rd] = wb_data;
+				break;
+			case jump:
+				wb_data = PC;
+				PC = (PC - 4) + sign_extend<uint64_t>(imm_j, 21); // 21 bits sign extend
+				if (PC % 4 == 0) { reg_file[rd] = wb_data; /* PC + 4 to rd */ }
+				break;
+			case jumpr:
+				wb_data = PC;
+				PC = (reg_file[rs1] + sign_extend<uint64_t>(imm11_0, 12)) & 0xFFFFFFFFFFFFFFFE; // setting LSB to 0 as spec page 20
+				if (PC % 4 == 0) { reg_file[rd] = wb_data; /* PC + 4 to rd */ }
+				break;
+			case cjump:
+				switch (func3) {
+				case 0b000: branch = reg_file[rs1] == reg_file[rs2]; break; // BEQ
+				case 0b001: branch = (reg_file[rs1] != reg_file[rs2]); break; // BNE
+				case 0b100: branch = (signed_value(reg_file[rs1]) < signed_value(reg_file[rs2])); break; // BLT
+				case 0b101: branch = (signed_value(reg_file[rs1]) >= signed_value(reg_file[rs2])); break; // BGE
+				case 0b110: branch = (reg_file[rs1] < reg_file[rs2]); break; // BLTU
+				case 0b111: branch = (reg_file[rs1] >= reg_file[rs2]); break; // BGEU
+				default:
+					break;
+				}
+				if (branch) { PC = PC - 4 + sign_extend<uint64_t>(imm_b, 13); }
+				break;
 			case load:
 				load_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm11_0, 12)) & 0x00000000ffffffff;
 				if (signed_value(load_addr) < 0) {
