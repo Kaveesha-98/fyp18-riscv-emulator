@@ -1661,68 +1661,66 @@ public:
 
   #endif
 
-  /**
-   * Steps through one architectural change of pc
-   * which includes executing one legal instruction, moving to
-   * exception/interrupt handler after a synchronous/asynchronous
-   * exception
-   */
-  void step()
-  {
-    reg_file[0] = 0;
+	/**
+	 * Steps through one architectural change of pc
+	 * which includes executing one legal instruction, moving to
+	 * exception/interrupt handler after a synchronous/asynchronous
+	 * exception
+	 */
+	void step() {
+		reg_file[0] = 0;
 
-    gettimeofday(&tv, NULL);
-    time_in_micros = 1000000 * tv.tv_sec + tv.tv_usec;
-    mtime = (uint64_t)(time_in_micros * 10);
+		gettimeofday(&tv, NULL);
+		time_in_micros = 1000000 * tv.tv_sec + tv.tv_usec;
+		mtime = (uint64_t)(time_in_micros * 10);
 
-    instruction = fetch_instruction(PC);
+		instruction = fetch_instruction(PC);
 		// printf("pc: %016lx fcsr: %016lx\n", PC, fcsr.read_fflags());
 		// show_state();
 		//printf("wbdata: %08x\n", static_cast<int32_t>(freg_file[0]));
 
-    //--------------Debugging---------------------
-    //To check if all tests passed
-    // if (instruction == 0x00000073 && reg_file[3] == 0x1 && reg_file[17] == 0x5d && reg_file[10] == 0x0) {
-    //   std::cout<<"All tests passed"<<endl;
-    //   disable_raw_mode();
-    //   exit(0);
-    // }
-    // if (instruction == 0x00018513) {
-    //   std::cout<<"Tests failed"<<endl;
-    //   disable_raw_mode();
-    //   exit(1);
-    // }
-    //--------------Debugging---------------------
+		//--------------Debugging---------------------
+		//To check if all tests passed
+		// if (instruction == 0x00000073 && reg_file[3] == 0x1 && reg_file[17] == 0x5d && reg_file[10] == 0x0) {
+		//   std::cout<<"All tests passed"<<endl;
+		//   disable_raw_mode();
+		//   exit(0);
+		// }
+		// if (instruction == 0x00018513) {
+		//   std::cout<<"Tests failed"<<endl;
+		//   disable_raw_mode();
+		//   exit(1);
+		// }
+		//--------------Debugging---------------------
 
-    if (!INS_ADDR_MISSALIG)
-    {
+		if (!INS_ADDR_MISSALIG) {
 
-      PC = PC + 4;
+			PC = PC + 4;
 
-      opcode = static_cast<opcode_t>((instruction) & 0b1111111);
+			opcode = static_cast<opcode_t>((instruction) & 0b1111111);
 
-      rd = ((instruction) >> 7) & 0b11111;
-      func3 = ((instruction) >> 12) & 0b111;
-      rs1 = ((instruction) >> 15) & 0b11111;
-      rs2 = ((instruction) >> 20) & 0b11111;
-      func7 = ((instruction) >> 25) & 0b1111111;
+			rd = ((instruction) >> 7) & 0b11111;
+			func3 = ((instruction) >> 12) & 0b111;
+			rs1 = ((instruction) >> 15) & 0b11111;
+			rs2 = ((instruction) >> 20) & 0b11111;
+			func7 = ((instruction) >> 25) & 0b1111111;
 
-      imm11_0 = ((instruction) >> 20) & 0b111111111111;
-      imm31_12 = ((instruction) >> 12) & 0xFFFFF; // extract 20 bits
+			imm11_0 = ((instruction) >> 20) & 0b111111111111;
+			imm31_12 = ((instruction) >> 12) & 0xFFFFF; // extract 20 bits
 
-      imm_j = ((((instruction) >> 31) & 0b1) << 20) + ((instruction) & (0b11111111 << 12)) + ((((instruction) >> 20) & 0b1) << 11) + ((((instruction) >> 21) & 0b1111111111) << 1); //((instruction>>31) & 0b1)<<20 + (instruction & (0b11111111<<12)) + ((instruction>>20) & 0b1)<<11 +
-      imm_b = ((((instruction) >> 31) & 0b1) << 12) + ((((instruction) >> 7) & 0b1) << 11) + ((((instruction) >> 25) & 0b111111) << 5) + (((instruction) >> 7) & 0b11110);
-      imm_s = ((((instruction) >> 25) & 0b1111111) << 5) + (((instruction) >> 7) & 0b11111);
-      imm = rd | ((instruction >> (25 - 5)) & 0xfe0);
-      imm = (imm << 20) >> 20;
+			imm_j = ((((instruction) >> 31) & 0b1) << 20) + ((instruction) & (0b11111111 << 12)) + ((((instruction) >> 20) & 0b1) << 11) + ((((instruction) >> 21) & 0b1111111111) << 1); //((instruction>>31) & 0b1)<<20 + (instruction & (0b11111111<<12)) + ((instruction>>20) & 0b1)<<11 +
+			imm_b = ((((instruction) >> 31) & 0b1) << 12) + ((((instruction) >> 7) & 0b1) << 11) + ((((instruction) >> 25) & 0b111111) << 5) + (((instruction) >> 7) & 0b11110);
+			imm_s = ((((instruction) >> 25) & 0b1111111) << 5) + (((instruction) >> 7) & 0b11111);
+			imm = rd | ((instruction >> (25 - 5)) & 0xfe0);
+			imm = (imm << 20) >> 20;
 
-      amo_op = ((instruction) >> 27) & 0b11111;
+			amo_op = ((instruction) >> 27) & 0b11111;
 
-      //* Line 1262 Add new opcode fields
-      rm = ((instruction) >> 12) & 0b111;
-      fmt = ((instruction) >> 25) & 0b11;
-      funt5 = ((instruction) >> 27) & 0b11111;
-      rs3 = ((instruction) >> 27) & 0b11111;
+			//* Line 1262 Add new opcode fields
+			rm = ((instruction) >> 12) & 0b111;
+			fmt = ((instruction) >> 25) & 0b11;
+			funt5 = ((instruction) >> 27) & 0b11111;
+			rs3 = ((instruction) >> 27) & 0b11111;
 
 			switch (opcode) {
 			case lui:
@@ -1763,7 +1761,7 @@ public:
 				} else {
 					if (((load_addr >= DRAM_BASE) && (load_addr <= (DRAM_BASE + 0x9000000)))) {
 						load_data = memory.at((load_addr - DRAM_BASE) / 8);
-					// right justification and sign extension
+						// right justification and sign extension
 						wb_data = (static_cast<int64_t>(load_data << ((64-((load_addr&7)<<3)) - (1 << (3 + (func3&3)))))) >> (64 - (1 << (3 + (func3&3))));
 						wb_data = (func3&4) ? (wb_data & (0xfffffffffffffffflu >> (64 - (1 << (3 + (func3&3)))))) : wb_data;
 						if ((load_addr & ((1 << (func3&3)) - 1))) { LD_ADDR_MISSALIG = true; } else { reg_file[rd] = wb_data; }
