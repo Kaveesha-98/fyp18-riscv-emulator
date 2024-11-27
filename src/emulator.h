@@ -1344,38 +1344,13 @@ private:
     return true;
   }
 
-  //*Adding load_word_fp
-  bool load_word_fp(const uint64_t &load_addr, const uint64_t &load_data, float &f_wb_data)
-  {
-    switch (load_addr % 8)
-    {
-    case 0:{
-      uint32_t chunk = static_cast<uint32_t>((load_data >> 0) & 0xFFFFFFFF);
-      f_wb_data = *reinterpret_cast<float*>(&chunk);
-      break; }
-    case 1:{
-      uint32_t chunk = static_cast<uint32_t>((load_data >> 8) & 0xFFFFFFFF);
-      f_wb_data = *reinterpret_cast<float*>(&chunk);
-      break; }
-    case 2:{
-      uint32_t chunk = static_cast<uint32_t>((load_data >> 16) & 0xFFFFFFFF);
-      f_wb_data = *reinterpret_cast<float*>(&chunk);
-      break; }
-    case 3:{
-      uint32_t chunk = static_cast<uint32_t>((load_data >> 24) & 0xFFFFFFFF);
-      f_wb_data = *reinterpret_cast<float*>(&chunk);
-      break; }
-    case 4:{
-      uint32_t chunk = static_cast<uint32_t>((load_data >> 32) & 0xFFFFFFFF);
-      f_wb_data = *reinterpret_cast<float*>(&chunk);
-      break; }
-    default:
-      f_wb_data = -1;
-      return false;
-      break;
-    }
-    return true;
-  }
+	//*Adding load_word_fp
+	bool load_word_fp(const uint64_t &load_addr, const uint64_t &load_data, float &f_wb_data)
+	{
+		uint32_t chunk = static_cast<uint32_t>((load_data >> ((load_addr&7) << 3)) & 0xFFFFFFFF);
+		f_wb_data = *reinterpret_cast<float*>(&chunk);
+		return ((load_addr&3) == 0) ? true : false;
+	}
 
 	//*Adding store_word_fp
 	bool store_word_fp(const uint64_t &store_addr, const uint64_t &load_data,  float &value, uint64_t &wb_data) {
