@@ -1517,43 +1517,28 @@ public:
    * Perform a memory read for an instruction
    * @param PC pc of the instruction
    */
-  __uint64_t fetch_instruction(__uint64_t PC)
-  {
+  __uint64_t fetch_instruction(__uint64_t PC) {
     PC_phy = PC - DRAM_BASE;
 
-    if (PC % 4 == 0)
-    {
+    if (PC % 4 == 0) {
       instruction = getINST(PC_phy / 4, &memory);
       return instruction;
-    }
-    else
-    {
+    } else {
       INS_ADDR_MISSALIG = true;
       PC -= PC % 4;
     }
     return 0UL;
   }
 
-  /**
-   * Perform a memory read for a data fetch, always read 8 bytes.
-   * Both for peripherals and main memory
-   * @param address physical base address of the data to be accessed
-   */
-  __uint64_t memory_read(__uint64_t address)
-  {
+	/**
+	 * Perform a memory read for a data fetch, always read 8 bytes.
+	 * Both for peripherals and main memory
+	 * @param address physical base address of the data to be accessed
+	 */
+	__uint64_t memory_read(__uint64_t address) {
 		// TODO add assertions to make sure no out of bounds access
-    return memory.at((address - DRAM_BASE) / 8);;
-  }
-
-  /**
-   * Performs a memory write to both main memory and peripherals
-   * @param address physical base address to be written
-   * @param data data to be stores right justified
-   * @param size number of bytes to overwrite
-   */
-  void memory_write(__uint64_t address, __uint64_t data, __uint8_t size)
-  {
-  }
+		return memory.at((address - DRAM_BASE) / 8);;
+	}
 
 	#ifndef LOCKSTEP
 	/**
