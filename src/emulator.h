@@ -1376,34 +1376,13 @@ private:
     }
     return true;
   }
-  //*Adding store_word_fp
-  bool store_word_fp(const uint64_t &store_addr, const uint64_t &load_data,  float &value, uint64_t &wb_data)
-  {
-    uint64_t value_int = *reinterpret_cast<uint64_t*>(&value);
-    switch (store_addr % 8)
-    {
-    case 0:
-      wb_data = (load_data & 0xFFFFFFFF00000000) + ((value_int & 0xFFFFFFFF) << 0);
-      break;
-    case 1:
-      wb_data = (load_data & 0xFFFFFF00000000FF) + ((value_int & 0xFFFFFFFF) << 8);
-      break;
-    case 2:
-      wb_data = (load_data & 0xFFFF00000000FFFF) + ((value_int & 0xFFFFFFFF) << 16);
-      break;
-    case 3:
-      wb_data = (load_data & 0xFF00000000FFFFFF) + ((value_int & 0xFFFFFFFF) << 24);
-      break;
-    case 4:
-      wb_data = (load_data & 0x00000000FFFFFFFF) + ((value_int & 0xFFFFFFFF) << 32);
-      break;
-    default:
-      wb_data = -1;
-      return false;
-      break;
-    }
-    return true;
-  }
+
+	//*Adding store_word_fp
+	bool store_word_fp(const uint64_t &store_addr, const uint64_t &load_data,  float &value, uint64_t &wb_data) {
+		uint64_t value_int = *reinterpret_cast<uint64_t*>(&value);
+		wb_data = (load_data & ~(0x00000000fffffffflu << ((store_addr&7) << 3))) + ((value_int & 0xFFFFFFFF) << ((store_addr&7) << 3));
+		return ((store_addr&3) == 0) ? true : false;
+	}
 
 public:
 	uint64_t get_mstatus() { return mstatus.read_reg(); }
