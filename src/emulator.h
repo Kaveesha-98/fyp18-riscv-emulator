@@ -1779,166 +1779,57 @@ public:
           PC = PC - 4 + sign_extend<uint64_t>(imm_b, 13);
         }
         break;
-      case load:
-        load_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm11_0, 12)) & 0x00000000ffffffff;
-        if (signed_value(load_addr) < 0)
-        {
-          LD_ACC_FAULT = true;
-        }
-        else
-        {
-          if ((load_addr != FIFO_ADDR_RX) && ((load_addr != FIFO_ADDR_TX)))
-          {
-            if ((load_addr >= DRAM_BASE) & (load_addr <= (DRAM_BASE + 0x9000000)))
-            {
-              load_data = memory.at((load_addr - DRAM_BASE) / 8);
-            }
-            else
-            {
-              if ((load_addr >= CLINT_BASE) && (load_addr <= CLINT_BASE + CLINT_SIZE))
-              {
-                uint64_t offset = load_addr - CLINT_BASE;
-                switch (offset)
-                {
-                case 0xbff8: // rtc time
-                  load_data = mtime;
-                  break;
-                case 0x4000: // timecmp
-                  load_data = mtimecmp;
-                  break;
-                default:
-									debug("[WARNING-EMULATOR] undefined load address load_addr: 0x%08lx\n", load_addr); 
-                  load_data = 0;
-                  break;
-                }
-              }
-              else
-              {
-                load_data = 0x1000;
+			case load:
+				load_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm11_0, 12)) & 0x00000000ffffffff;
+				if (signed_value(load_addr) < 0) {
+					LD_ACC_FAULT = true;
+				} else {
+					if (((load_addr >= DRAM_BASE) && (load_addr <= (DRAM_BASE + 0x9000000)))) {
+						load_data = memory.at((load_addr - DRAM_BASE) / 8);
+					// right justification and sign extension
+						wb_data = (static_cast<int64_t>(load_data << ((64-((load_addr&7)<<3)) - (1 << (3 + (func3&3)))))) >> (64 - (1 << (3 + (func3&3))));
+						wb_data = (func3&4) ? (wb_data & (0xfffffffffffffffflu >> (64 - (1 << (3 + (func3&3)))))) : wb_data;
+						if ((load_addr & ((1 << (func3&3)) - 1))) { LD_ADDR_MISSALIG = true; } else { reg_file[rd] = wb_data; }
+					} else {
+						if ((load_addr >= CLINT_BASE) && (load_addr <= CLINT_BASE + CLINT_SIZE)) {
+							uint64_t offset = load_addr - CLINT_BASE;
+							switch (offset) {
+							case 0xbff8: wb_data = mtime; break; // rtc time
+							case 0x4000: wb_data = mtimecmp; break; // timecmp
+							default:
 								debug("[WARNING-EMULATOR] undefined load address load_addr: 0x%08lx\n", load_addr); 
-              }
-            }
-            switch (func3)
-            {
-            case 0b000:
-              if (!load_byte(load_addr, load_data, wb_data))
-              {
-                LD_ADDR_MISSALIG = true;
-              }
-              else
-              {
-                wb_data = sign_extend<uint64_t>(wb_data & (0xFF), 8);
-                reg_file[rd] = wb_data;
-              }
-              break; // LB sign extend  8 bit value
-            case 0b001:
-              if (!load_halfw(load_addr, load_data, wb_data))
-              {
-                LD_ADDR_MISSALIG = true;
-              }
-              else
-              {
-                wb_data = sign_extend<uint64_t>(wb_data & (0xFFFF), 16);
-                reg_file[rd] = wb_data;
-              }
-              break; // LH sign extend 16 bit value
-            case 0b010:
-              if (!load_word(load_addr, load_data, wb_data))
-              {
-                LD_ADDR_MISSALIG = true;
-              }
-              else
-              {
-                wb_data = sign_extend<uint64_t>(wb_data & (0xFFFFFFFF), 32);
-                reg_file[rd] = wb_data;
-              }
-              break; // LW sign extend 32 bit value
-            case 0b100:
-              if (!load_byte(load_addr, load_data, wb_data))
-              {
-                LD_ADDR_MISSALIG = true;
-              }
-              else
-              {
-                wb_data = wb_data & 0xFF;
-                reg_file[rd] = wb_data;
-              }
-              break; // LBU zero extend  8 bit value
-            case 0b101:
-              if (!load_halfw(load_addr, load_data, wb_data))
-              {
-                LD_ADDR_MISSALIG = true;
-              }
-              else
-              {
-                wb_data = wb_data & 0xFFFF;
-                reg_file[rd] = wb_data;
-              }
-              break; // LHU zero extend 16 bit value
-            case 0b110:
-              if (!load_word(load_addr, load_data, wb_data))
-              {
-                LD_ADDR_MISSALIG = true;
-              }
-              else
-              {
-                wb_data = wb_data & 0xFFFFFFFF;
-                reg_file[rd] = wb_data;
-              }
-              break; // LWU zero extend 32 bit value
-            case 0b011:
-              if ((load_addr % 8) == 0)
-              {
-                wb_data = load_data;
-                reg_file[rd] = wb_data;
-              }
-              else
-              {
-                LD_ADDR_MISSALIG = true;
-              }
-              break; // LD
-            default:
-              break;
-            }
-          }
-          else
-          {
-            if (load_addr == FIFO_ADDR_RX)
-            {
-              if (kbhit())
-              {
-                wb_data = 0;
-              }
-              else
-              {
-                wb_data = 2;
-              }
-              reg_file[rd] = wb_data;
-            }
-            else if (load_addr == FIFO_ADDR_TX)
-            {
-              #ifndef LOCKSTEP
-              wb_data = getchar();
-              #endif
-              reg_file[rd] = wb_data;
-            }
-          }
-        }
-        break;
+								wb_data = 0;
+								break;
+							}
+						} else if (load_addr == FIFO_ADDR_RX) {
+							wb_data = kbhit() ? 0 : 2;
+						}
+						else if (load_addr == FIFO_ADDR_TX) {
+							#ifndef LOCKSTEP
+							wb_data = getchar();
+							#endif
+						} else {
+							wb_data = 0x1000;
+							debug("[WARNING-EMULATOR] undefined load address load_addr: 0x%08lx\n", load_addr); 
+						}
+						reg_file[rd] = wb_data;
+					}
+				}
+				break;
 			case store:
-				store_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm_s, 12)) & 0x00000000ffffffff;
-				if ((store_addr >= DRAM_BASE) & (store_addr < (DRAM_BASE + 0x9000000))) {
-					store_data = memory.at((store_addr - DRAM_BASE) / 8);
-					wb_data = store_data & ~((0xfffffffffffffffflu >> (64 - (1 << (3 + (func3&3))))) << ((store_addr&7) << 3));
-					val = (reg_file[rs2] & (0xfffffffffffffffflu >> (64 - (1 << (3 + (func3&3)))))) << ((store_addr&7) << 3);
-					wb_data |= val;
-					ls_success = (store_addr & ((1 << (func3&3)) - 1)) == 0; 
-					if (!ls_success) {
+				store_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm_s, 12)) & 0x00000000ffffffff; // address generation
+				if ((store_addr >= DRAM_BASE) & (store_addr < (DRAM_BASE + 0x9000000))) { // main memory
+					store_data = memory.at((store_addr - DRAM_BASE) / 8); // get original data
+					wb_data = store_data & ~((0xfffffffffffffffflu >> (64 - (1 << (3 + (func3&3))))) << ((store_addr&7) << 3)); // make space for new data to be written
+					val = (reg_file[rs2] & (0xfffffffffffffffflu >> (64 - (1 << (3 + (func3&3)))))) << ((store_addr&7) << 3); // byte aligning write data
+					wb_data |= val; // overwriting original data
+					ls_success = ((store_addr & ((1 << (func3&3)) - 1)) == 0); // looking for misalignment 
+					if (!ls_success) { 
 						PC = excep_function(PC, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, cp);
 					} else {
-						memory.at((store_addr - DRAM_BASE) / 8) = wb_data;
+						memory.at((store_addr - DRAM_BASE) / 8) = wb_data; // store data
 					}
-				} else {
+				} else { // peripherals
 					if ((store_addr >= CLINT_BASE) & (store_addr <= (CLINT_BASE + CLINT_SIZE))) {
 						switch (store_addr - CLINT_BASE) {
 						case 0x4000:
