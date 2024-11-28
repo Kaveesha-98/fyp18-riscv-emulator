@@ -877,109 +877,92 @@ private:
     printf("\n");
   }
 
-  template <class T>
-  T divi(T num1, T num2, int s)
-  {
-    if (num2 == 0)
-    {
-      switch (s)
-      {
-      case 0:
-        return (T)(-1);
-      case 1:
-        return (T)MASK64;
-      case 2:
-        return num1;
-      case 3:
-        return num1;
-      }
-    }
-    else if (num1 == (-pow(2ull, 63)) && num2 == -1)
-    {
-      if (s == 0 || s == 2)
-      {
-        switch (s)
-        {
-        case 0:
-          return (T)(-pow(2ull, 63));
-        case 2:
-          return 0;
-        }
-      }
-    }
-    else
-    {
-      ldiv_t div_result;
-      switch (s)
-      {
-      case 0:
-        div_result = div((int64_t)num1, (int64_t)num2);
-        return div_result.quot;
-      case 1:
-        return num1 / num2;
-      case 2:
-        div_result = div((int64_t)num1, (int64_t)num2);
-        return div_result.rem;
-      case 3:
-        return num1 % num2;
-      default:
-        return (T)(-1);
-      }
-    }
-    return (T)(-1);
-  }
+	template <class T>
+	T divi(T num1, T num2, int s) {
+		if (num2 == 0) {
+			switch (s) {
+			case 0:
+				return (T)(-1);
+			case 1:
+				return (T)MASK64;
+			case 2:
+				return num1;
+			case 3:
+				return num1;
+			}
+		}
+		else if (num1 == (-pow(2ull, 63)) && num2 == -1) {
+			if (s == 0 || s == 2) {
+				switch (s) {
+				case 0:
+					return (T)(-pow(2ull, 63));
+				case 2:
+					return 0;
+				}
+			}
+		}
+		else {
+			ldiv_t div_result;
+			switch (s) {
+			case 0:
+				div_result = div((int64_t)num1, (int64_t)num2);
+				return div_result.quot;
+			case 1:
+				return num1 / num2;
+			case 2:
+				div_result = div((int64_t)num1, (int64_t)num2);
+				return div_result.rem;
+			case 3:
+				return num1 % num2;
+			default:
+				return (T)(-1);
+			}
+		}
+		return (T)(-1);
+	}
 
-  template <class T>
-  T divi32(T num1, T num2, int s)
-  {
-    if (num2 == 0)
-    {
-      switch (s)
-      {
-      case 0:
-        return (T)(-1);
-      case 1:
-        return (T)MASK32;
-      case 2:
-        return num1;
-      case 3:
-        return num1;
-      }
-    }
-    else if (num1 == (-pow(2, 31)) && num2 == -1)
-    {
-      if (s == 0 || s == 2)
-      {
-        switch (s)
-        {
-        case 0:
-          return (T)(-pow(2ull, 31));
-        case 2:
-          return 0;
-        }
-      }
-    }
-    else
-    {
-      div_t div_result;
-      switch (s)
-      {
-      case 0:
-        div_result = div((int32_t)num1, (int32_t)num2);
-        return div_result.quot;
-      case 1:
-        return num1 / num2;
-      case 2:
-        div_result = div((int32_t)num1, (int32_t)num2);
-        return div_result.rem;
-      case 3:
-        return num1 % num2;
-      default:
-        return (T)(-1);
-      }
-    }
-    return (T)(-1);
-  }
+	template <class T>
+	T divi32(T num1, T num2, int s) {
+		if (num2 == 0) {
+			switch (s) {
+			case 0:
+				return (T)(-1);
+			case 1:
+				return (T)MASK32;
+			case 2:
+				return num1;
+			case 3:
+				return num1;
+			}
+		}
+		else if (num1 == (-pow(2, 31)) && num2 == -1) {
+			if (s == 0 || s == 2) {
+				switch (s) {
+				case 0:
+					return (T)(-pow(2ull, 31));
+				case 2:
+					return 0;
+				}
+			}
+		} else {
+			div_t div_result;
+			switch (s) {
+			case 0:
+				div_result = div((int32_t)num1, (int32_t)num2);
+				return div_result.quot;
+			case 1:
+				return num1 / num2;
+			case 2:
+				div_result = div((int32_t)num1, (int32_t)num2);
+				return div_result.rem;
+			case 3:
+				return num1 % num2;
+			default:
+				return (T)(-1);
+			}
+		}
+		return (T)(-1);
+	}
 
 	//*Line 775 Add rounding modes
 	void roundingmode_change(const uint8_t RM, const float result_temp){
