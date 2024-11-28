@@ -981,123 +981,90 @@ private:
     return (T)(-1);
   }
 
-  //*Line 775 Add rounding modes
-  void roundingmode_change(const uint8_t RM, const float result_temp){
-    //? const uint8_t &RM is this the way to get the rounding mode?
-    switch (RM) {
-      case (0b000):
-        fesetround(FE_TONEAREST);
-        break;
-      case (0b001):
-        fesetround(FE_TOWARDZERO);
-        break;
-      case (0b010):
-        fesetround(FE_DOWNWARD);
-        break;
-      case (0b011):
-        fesetround(FE_UPWARD);
-        break;
-      case (0b100):
-        if (std::signbit(result_temp)) {
-          fesetround(FE_DOWNWARD);
-          break;
-        } else {
-          fesetround(FE_UPWARD);
-          break;
-        }
-        break;
-      case (0b101):
-        //Invalid
-        break;
-      case (0b110):
-        //Invalid
-        break;
-      case (0b111):
-        //Read fcsr frm field
-        //And call one of the first five
-        break;
-      default:
-        break;
+	//*Line 775 Add rounding modes
+	void roundingmode_change(const uint8_t RM, const float result_temp){
+	//? const uint8_t &RM is this the way to get the rounding mode?
+		switch (RM) {
+		case (0b000): fesetround(FE_TONEAREST); break;
+		case (0b001): fesetround(FE_TOWARDZERO); break;
+		case (0b010): fesetround(FE_DOWNWARD); break;
+		case (0b011): fesetround(FE_UPWARD); break;
+		case (0b100):
+			if (std::signbit(result_temp)) {
+				fesetround(FE_DOWNWARD);
+				break;
+			} else {
+				fesetround(FE_UPWARD);
+				break;
+			}
+			break;
+		case (0b101): break; // Invalid
+		case (0b110): break;// Invalid
+		case (0b111):
+			//Read fcsr frm field
+			//And call one of the first five
+			break;
+		default:
+			break;
 
-      //TODO Need to add Invalid options
-      // ? Round to Nearest, ties to Max Magnitude need to be implemented in 
-      // ? in arithmetic instruction location
-    }
-  }
+		//TODO Need to add Invalid options
+		// ? Round to Nearest, ties to Max Magnitude need to be implemented in 
+		// ? in arithmetic instruction location
+		}
+	}
 
-  void roundingmode_revert(){
-    //Default rounding mode
-    fesetround(FE_TONEAREST);
-  }
+	void roundingmode_revert(){
+		//Default rounding mode
+		fesetround(FE_TONEAREST);
+	}
 
-  //* Function is used to unary rounding
-  float round_to_int(uint8_t RM,float num){
-  //this function is used to unary rounding
-  //fcvt.w.s,fcvt.wu.s,fcvt.l.s,fcvt.lu.s
-  //fcvt.s.w,fcvt.s.wu,fcvt.s.l,fcvt.s.lu
-    switch(RM){
-      case (0b000):
-        //rne
-        return round(num);
-        break;
-      case (0b001):
-        //rtz
-        return trunc(num);
-        break;
-      case (0b010):
-        //rdn
-        return floor(num);
-        break;
-      case (0b011):
-        //rup
-        return ceil(num);
-        break;
-      case (0b100):
-        //rmm
-        //need to complete
-        break;
-      case (0b101):
-        //invalid
-        break;
-      case (0b110):
-        //invalid
-        break;
-      case (0b111):
-        //dynamic
-        RM=static_cast<uint8_t>(fcsr.read_frm());
-        round_to_int(rm,num);
-        break;
-      default:
-        break;
-    }
-  return num;
-}
+	//* Function is used to unary rounding
+	float round_to_int(uint8_t RM,float num) {
+	//this function is used to unary rounding
+	//fcvt.w.s,fcvt.wu.s,fcvt.l.s,fcvt.lu.s
+	//fcvt.s.w,fcvt.s.wu,fcvt.s.l,fcvt.s.lu
+	switch(RM){ 
+	case (0b000): return round(num); break; // rne
+	case (0b001): return trunc(num); break; // rtz
+	case (0b010): return floor(num); break; // rdn
+	case (0b011): return ceil(num); break; // rup
+	case (0b100): break; // rmm - need to complete
+	case (0b101): break; // invalid
+	case (0b110): break; // invalid
+	case (0b111): 
+		RM=static_cast<uint8_t>(fcsr.read_frm());
+		round_to_int(rm,num);
+		break; // dynamic
+	default: break;
+	}
+	return num;
+	}
 
-  //* To access exceptions
-  void setfflags(){
-	  //feclearexcept(FE_ALL_EXCEPT);
-	  int temp;
-	  if (fetestexcept(FE_INVALID)){
-		temp = fcsr.read_fflags();
-	    fcsr.write_fflags(0b10000 | temp);
-	  }
-	  if (fetestexcept(FE_DIVBYZERO)){
-		temp = fcsr.read_fflags();
-		fcsr.write_fflags(0b01000 | temp);  
-	  }
-	  if (fetestexcept(FE_OVERFLOW)){
-		temp = fcsr.read_fflags();
-		fcsr.write_fflags(0b00100 | temp);  
-	  }
-	  if (fetestexcept(FE_UNDERFLOW)){
-		temp = fcsr.read_fflags();
-		fcsr.write_fflags(0b00010 | temp);   
-	  }
-	  if (fetestexcept(FE_INEXACT)){
-		temp = fcsr.read_fflags();
-		fcsr.write_fflags(0b00001 | temp);   
-	  }
-  }
+	//* To access exceptions
+	void setfflags() {
+		//feclearexcept(FE_ALL_EXCEPT);
+		int temp;
+		if (fetestexcept(FE_INVALID)){
+			temp = fcsr.read_fflags();
+			fcsr.write_fflags(0b10000 | temp);
+		}
+		if (fetestexcept(FE_DIVBYZERO)){
+			temp = fcsr.read_fflags();
+			fcsr.write_fflags(0b01000 | temp);  
+		}
+		if (fetestexcept(FE_OVERFLOW)){
+			temp = fcsr.read_fflags();
+			fcsr.write_fflags(0b00100 | temp);  
+		}
+		if (fetestexcept(FE_UNDERFLOW)){
+			temp = fcsr.read_fflags();
+			fcsr.write_fflags(0b00010 | temp);   
+		}
+		if (fetestexcept(FE_INEXACT)){
+			temp = fcsr.read_fflags();
+			fcsr.write_fflags(0b00001 | temp);   
+		}
+	}
 
 	//* To handle min-max instructions of floating point S
 	float min_max_f(float operand_1, float operand_2, int type) {
@@ -1116,7 +1083,7 @@ private:
 			}
 			return 0.0; // should not happen
 		}
-}
+	}
 
 	bool load_word(const uint64_t &load_addr, const uint64_t &load_data, uint64_t &wb_data) {
 		wb_data = static_cast<uint32_t>((load_data >> ((load_addr&7) << 3)) & 0xFFFFFFFF);
