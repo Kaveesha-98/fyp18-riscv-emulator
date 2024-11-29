@@ -819,63 +819,55 @@ private:
     return -1;
   }
 
-  template <class T>
-  T sign_extend(const T &x, const int &bits)
-  {
-    T m = 1;
-    m <<= bits - 1;
-    return (x ^ m) - m;
-  }
+	template <class T>
+	T sign_extend(const T &x, const int &bits) {
+		T m = 1;
+		m <<= bits - 1;
+		return (x ^ m) - m;
+	}
 
-  string exec(const char *cmd)
-  {
-    char buffer[128];
-    string result = "";
-    FILE *pipe = popen(cmd, "r");
-    if (!pipe)
-      throw runtime_error("popen() failed!");
-    try
-    {
-      while (fgets(buffer, sizeof buffer, pipe) != NULL)
-      {
-        result += buffer;
-      }
-    }
-    catch (...)
-    {
-      pclose(pipe);
-      throw;
-    }
-    pclose(pipe);
-    return result;
-  }
+	string exec(const char *cmd) {
+		char buffer[128];
+		string result = "";
+		FILE *pipe = popen(cmd, "r");
+		if (!pipe)
+			throw runtime_error("popen() failed!");
+		try {
+			while (fgets(buffer, sizeof buffer, pipe) != NULL) {
+				result += buffer;
+			}
+		} catch (...) {
+			pclose(pipe);
+			throw;
+		}
+		pclose(pipe);
+		return result;
+	}
 
-  /* int hex_to_dec(const int64_t &hex_num)
-  {
-    stringstream stream;
-    int y;
-    stream << hex_num;
-    stream >> hex >> y;
-    return y;
-  } */
+	/* int hex_to_dec(const int64_t &hex_num)
+	{
+		stringstream stream;
+		int y;
+		stream << hex_num;
+		stream >> hex >> y;
+		return y;
+	} */
 
-  void print_reg_file(const vector<uint64_t> &reg_file)
-  {
-    printf("\n");
-    for (int i = 0; i < 32 - 7; i += 8)
-    {
-      printf("%s : %lu | %s : %lu | %s : %lu | %s : %lu | %s : %lu | %s : %lu | %s : %lu | %s : %lu\n",
-             reg_file_names[i].c_str(), signed_value(reg_file[i]),
-             reg_file_names[i + 1].c_str(), signed_value(reg_file[i + 1]),
-             reg_file_names[i + 2].c_str(), signed_value(reg_file[i + 2]),
-             reg_file_names[i + 3].c_str(), signed_value(reg_file[i + 3]),
-             reg_file_names[i + 4].c_str(), signed_value(reg_file[i + 4]),
-             reg_file_names[i + 5].c_str(), signed_value(reg_file[i + 5]),
-             reg_file_names[i + 6].c_str(), signed_value(reg_file[i + 6]),
-             reg_file_names[i + 7].c_str(), signed_value(reg_file[i + 7]));
-    }
-    printf("\n");
-  }
+	void print_reg_file(const vector<uint64_t> &reg_file) {
+		printf("\n");
+		for (int i = 0; i < 32 - 7; i += 8) {
+			printf("%s : %lu | %s : %lu | %s : %lu | %s : %lu | %s : %lu | %s : %lu | %s : %lu | %s : %lu\n",
+				reg_file_names[i].c_str(), signed_value(reg_file[i]),
+				reg_file_names[i + 1].c_str(), signed_value(reg_file[i + 1]),
+				reg_file_names[i + 2].c_str(), signed_value(reg_file[i + 2]),
+				reg_file_names[i + 3].c_str(), signed_value(reg_file[i + 3]),
+				reg_file_names[i + 4].c_str(), signed_value(reg_file[i + 4]),
+				reg_file_names[i + 5].c_str(), signed_value(reg_file[i + 5]),
+				reg_file_names[i + 6].c_str(), signed_value(reg_file[i + 6]),
+				reg_file_names[i + 7].c_str(), signed_value(reg_file[i + 7]));
+		}
+		printf("\n");
+	}
 
 	template <class T>
 	T divi(T num1, T num2, int s) {
