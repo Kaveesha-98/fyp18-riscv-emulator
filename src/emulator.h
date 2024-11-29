@@ -36,25 +36,25 @@ using namespace std;
 
 // disables echo for terminal
 void enable_raw_mode() {
-  termios term;
-  tcgetattr(0, &term);
-  term.c_lflag &= ~(ICANON | ECHO); // Disable echo as well
-  tcsetattr(0, TCSANOW, &term);
+	termios term;
+	tcgetattr(0, &term);
+	term.c_lflag &= ~(ICANON | ECHO); // Disable echo as well
+	tcsetattr(0, TCSANOW, &term);
 }
 
 // return terminal back to original state before termination of the program
 void disable_raw_mode() {
-  termios term;
-  tcgetattr(0, &term);
-  term.c_lflag |= ICANON | ECHO;
-  tcsetattr(0, TCSANOW, &term);
+	termios term;
+	tcgetattr(0, &term);
+	term.c_lflag |= ICANON | ECHO;
+	tcsetattr(0, TCSANOW, &term);
 }
 
 // detecting a key hit
 int kbhit() {
-  int byteswaiting;
-  ioctl(0, FIONREAD, &byteswaiting);
-  return byteswaiting > 0;
+	int byteswaiting;
+	ioctl(0, FIONREAD, &byteswaiting);
+	return byteswaiting > 0;
 }
 
 /**
@@ -88,520 +88,520 @@ int kbhit() {
  */
 class emulator {
 private:
-  /**
-   * Initiate all the variables needed to define the state of the
-   * emulator.
-   * e.g.: gprs, csrs, memory, etc...
-   */
+	/**
+	 * Initiate all the variables needed to define the state of the
+	 * emulator.
+	 * e.g.: gprs, csrs, memory, etc...
+	 */
 
-  bool csr_read_success = false;
-  plevel_t cp = (plevel_t)MMODE;
-  bool LD_ADDR_MISSALIG = false;    // load address misalignment
-  bool STORE_ADDR_MISSALIG = false; // store/amo address misalignment
-  bool ILL_INS = false;             // illegal instruction
-  bool EBREAK = false;              // break point
-  bool INS_ADDR_MISSALIG = false;
-  bool INS_ACC_FAULT = false; // instruction access fault
-  bool LD_ACC_FAULT = false;  // load access fault
+	bool csr_read_success = false;
+	plevel_t cp = (plevel_t)MMODE;
+	bool LD_ADDR_MISSALIG = false;    // load address misalignment
+	bool STORE_ADDR_MISSALIG = false; // store/amo address misalignment
+	bool ILL_INS = false;             // illegal instruction
+	bool EBREAK = false;              // break point
+	bool INS_ADDR_MISSALIG = false;
+	bool INS_ACC_FAULT = false; // instruction access fault
+	bool LD_ACC_FAULT = false;  // load access fault
 
-  int64_t DRAM_BASE = 0x10000000;
+	int64_t DRAM_BASE = 0x10000000;
 
 	static_assert(std::numeric_limits<double>::is_iec559,
 									"This code requires IEEE-754 doubles");
 
-  string line;
-  uint64_t temp;
-  uint64_t i = 0;
+	string line;
+	uint64_t temp;
+	uint64_t i = 0;
 
-  enum opcode_t opcode;
-  uint64_t rd = 0;
-  uint64_t func3 = 0;
-  uint64_t rs1 = 0;
-  uint64_t rs2 = 0;
-  uint64_t func7 = 0;
-  uint64_t imm11_0 = 0;
-  uint64_t imm31_12 = 0;
-  uint64_t imm_j = 0;
-  uint64_t imm_b = 0;
-  uint64_t imm_s = 0;
-  uint32_t imm = 0;
-  uint64_t amo_op = 0;
+	enum opcode_t opcode;
+	uint64_t rd = 0;
+	uint64_t func3 = 0;
+	uint64_t rs1 = 0;
+	uint64_t rs2 = 0;
+	uint64_t func7 = 0;
+	uint64_t imm11_0 = 0;
+	uint64_t imm31_12 = 0;
+	uint64_t imm_j = 0;
+	uint64_t imm_b = 0;
+	uint64_t imm_s = 0;
+	uint32_t imm = 0;
+	uint64_t amo_op = 0;
 
-  //* Line 106, field deceleration
-  uint64_t rm = 0;
-  uint64_t fmt = 0;
-  uint64_t funt5 = 0;
-  uint64_t rs3 = 0;
+	//* Line 106, field deceleration
+	uint64_t rm = 0;
+	uint64_t fmt = 0;
+	uint64_t funt5 = 0;
+	uint64_t rs3 = 0;
 
-  bool amo_reserve_valid = false;
-  bool amo_reserve_valid64 = false;
-  uint64_t amo_reserve_addr = 0;
-  uint64_t amo_reserve_addr64 = 0;
+	bool amo_reserve_valid = false;
+	bool amo_reserve_valid64 = false;
+	uint64_t amo_reserve_addr = 0;
+	uint64_t amo_reserve_addr64 = 0;
 
-  uint64_t wb_data = 0;
+	uint64_t wb_data = 0;
 
-  //* To store intermediate result in single precision operations
-  float f_wb_data = 0;
+	//* To store intermediate result in single precision operations
+	float f_wb_data = 0;
 
-  uint64_t load_addr = 0;
-  uint64_t load_data = 0;
-  bool ls_success = false;
+	uint64_t load_addr = 0;
+	uint64_t load_data = 0;
+	bool ls_success = false;
 
-  uint64_t store_addr = 0;
-  uint64_t store_data = 0;
-  uint64_t val = 0;
+	uint64_t store_addr = 0;
+	uint64_t store_data = 0;
+	uint64_t val = 0;
 
-  //*To store f_register values
-  float f_val = 0;
+	//*To store f_register values
+	float f_val = 0;
 
-  bool branch = false;
+	bool branch = false;
 
-  uint64_t csr_data = 0;
-  bool csr_bool = false;
+	uint64_t csr_data = 0;
+	bool csr_bool = false;
 
-  uint64_t itr = 0;
+	uint64_t itr = 0;
 
-  uint64_t cycle_count = 0;
+	uint64_t cycle_count = 0;
 
-  __uint128_t mult_temp = 0;
+	__uint128_t mult_temp = 0;
 
-  uint64_t ret_data = 0;
+	uint64_t ret_data = 0;
 
-  vector<uint64_t> memory = vector<uint64_t>(1 << MEM_SIZE); // main memory
-  // vector<uint64_t> reg_file = vector<uint64_t>(32);          // register file
+	vector<uint64_t> memory = vector<uint64_t>(1 << MEM_SIZE); // main memory
+	// vector<uint64_t> reg_file = vector<uint64_t>(32);          // register file
 
-  uint64_t PC;
-  uint64_t PC_phy;
-  uint64_t instruction;
+	uint64_t PC;
+	uint64_t PC_phy;
+	uint64_t instruction;
 
-  //* Line 155 Change MISA to incorporate floating point.
-  uint64_t misa = 0b100000001000100100001 | (0b1llu << 63);     
-  uint64_t mscratch = 0;
-  uint64_t medeleg = 0;
-  uint64_t mideleg = 0;
-  uint64_t mepc = 0;
-  uint64_t uepc = 0;
-  uint64_t mtval = 0;
-  uint64_t mcounteren = 0;
-  uint64_t scounteren = 0;
-  uint64_t pmpcfg0 = 0;
-  uint64_t pmpaddr0 = 0;
-  uint64_t mhartid = 0;
-  uint64_t mvendorid = 0;
-  uint64_t marchid = 0;
-  uint64_t mimpid = 0;
+	//* Line 155 Change MISA to incorporate floating point.
+	uint64_t misa = 0b100000001000100100001 | (0b1llu << 63);     
+	uint64_t mscratch = 0;
+	uint64_t medeleg = 0;
+	uint64_t mideleg = 0;
+	uint64_t mepc = 0;
+	uint64_t uepc = 0;
+	uint64_t mtval = 0;
+	uint64_t mcounteren = 0;
+	uint64_t scounteren = 0;
+	uint64_t pmpcfg0 = 0;
+	uint64_t pmpaddr0 = 0;
+	uint64_t mhartid = 0;
+	uint64_t mvendorid = 0;
+	uint64_t marchid = 0;
+	uint64_t mimpid = 0;
 
-  struct satp_t {
-    uint64_t PPN;
-    uint16_t ASID;
-    uint8_t MODE = 0;
-    satp_t() {
-      PPN = 0;
-      ASID = 0;
-      MODE = 0;
-    }
-    uint64_t read_reg() {
-      return (((uint64_t)(MODE & 0xF) << 60) + ((uint64_t)ASID << 44) + (PPN & 0xFFFFFFFFFFFull));
-    }
+	struct satp_t {
+		uint64_t PPN;
+		uint16_t ASID;
+		uint8_t MODE = 0;
+		satp_t() {
+			PPN = 0;
+			ASID = 0;
+			MODE = 0;
+		}
+		uint64_t read_reg() {
+			return (((uint64_t)(MODE & 0xF) << 60) + ((uint64_t)ASID << 44) + (PPN & 0xFFFFFFFFFFFull));
+		}
 
-    void write_reg(const uint64_t &val) {
-      PPN = val & 0xFFFFFFFFFFFull;
-      ASID = 0; //(val>>44) & 0xFFFF ;
-      MODE = (val >> 60) & 0xF;
-      if (MODE != 8)
-      {
-        MODE = 0;
-      }
-    }
-  } satp; //
+		void write_reg(const uint64_t &val) {
+			PPN = val & 0xFFFFFFFFFFFull;
+			ASID = 0; //(val>>44) & 0xFFFF ;
+			MODE = (val >> 60) & 0xF;
+			if (MODE != 8)
+			{
+				MODE = 0;
+			}
+		}
+	} satp; //
 
-  struct mstatus_t {
-    uint8_t uie, sie, mie, upie, spie, mpie, spp, mpp, fs, xs, mprv, sum, mxr, tvm, tw, tsr, uxl, sxl, sd;
-    mstatus_t() {
-      uie = 0;
-      sie = 0;
-      mie = 0;
-      upie = 0;
-      spie = 0;
-      mpie = 0;
-      spp = 0;
-      mpp = 0b0;
-      fs = 0;
-      xs = 0;
-      mprv = 0;
-      sum = 0;
-      mxr = 0;
-      tvm = 0;
-      tw = 0;
-      tsr = 0;
-      uxl = 2;
-      sxl = 2;
-      sd = 0;
-    }
-    uint64_t read_reg() {
-      return (((uint64_t)sd << 63) + ((uint64_t)sxl << 34) + ((uint64_t)uxl << 32) + (tsr << 22) + (tw << 21) + (tvm << 20) + (mxr << 19) + (sum << 18) + (mprv << 17) + (xs << 15) + (fs << 13) + (mpp << 11) + (spp << 8) + (mpie << 7) + (spie << 5) + (upie << 4) + (mie << 3) + (sie << 1) + uie);
-    }
+	struct mstatus_t {
+		uint8_t uie, sie, mie, upie, spie, mpie, spp, mpp, fs, xs, mprv, sum, mxr, tvm, tw, tsr, uxl, sxl, sd;
+		mstatus_t() {
+			uie = 0;
+			sie = 0;
+			mie = 0;
+			upie = 0;
+			spie = 0;
+			mpie = 0;
+			spp = 0;
+			mpp = 0b0;
+			fs = 0;
+			xs = 0;
+			mprv = 0;
+			sum = 0;
+			mxr = 0;
+			tvm = 0;
+			tw = 0;
+			tsr = 0;
+			uxl = 2;
+			sxl = 2;
+			sd = 0;
+		}
+		uint64_t read_reg() {
+			return (((uint64_t)sd << 63) + ((uint64_t)sxl << 34) + ((uint64_t)uxl << 32) + (tsr << 22) + (tw << 21) + (tvm << 20) + (mxr << 19) + (sum << 18) + (mprv << 17) + (xs << 15) + (fs << 13) + (mpp << 11) + (spp << 8) + (mpie << 7) + (spie << 5) + (upie << 4) + (mie << 3) + (sie << 1) + uie);
+		}
 
-    void write_reg(const uint64_t &val) {
-      uie = (val & 0b1);
-      sie = ((val >> 1) & 0b1);
-      mie = ((val >> 3) & 0b1);
-      upie = ((val >> 4) & 0b1);
-      spie = ((val >> 5) & 0b1);
-      mpie = ((val >> 7) & 0b1);
-      spp = ((val >> 8) & 0b1);
-      mpp = ((val >> 11) & 0b11); // 0b11; removed hard wire to 11
-      fs = ((val >> 13) & 0b11);
-      xs = ((val >> 15) & 0b11);
-      mprv = ((val >> 17) & 0b1);
-      sum = ((val >> 18) & 0b1);
-      mxr = ((val >> 19) & 0b1);
-      tvm = ((val >> 20) & 0b1);
-      tw = ((val >> 21) & 0b1);
-      tsr = ((val >> 22) & 0b1); /*uxl= ((val>>32)& 0b11); read only*/
-      //sxl = ((val >> 34) & 0b11);
-      sd = ((val >> 63) & 0b1);
-    }
-  } mstatus; //
+		void write_reg(const uint64_t &val) {
+			uie = (val & 0b1);
+			sie = ((val >> 1) & 0b1);
+			mie = ((val >> 3) & 0b1);
+			upie = ((val >> 4) & 0b1);
+			spie = ((val >> 5) & 0b1);
+			mpie = ((val >> 7) & 0b1);
+			spp = ((val >> 8) & 0b1);
+			mpp = ((val >> 11) & 0b11); // 0b11; removed hard wire to 11
+			fs = ((val >> 13) & 0b11);
+			xs = ((val >> 15) & 0b11);
+			mprv = ((val >> 17) & 0b1);
+			sum = ((val >> 18) & 0b1);
+			mxr = ((val >> 19) & 0b1);
+			tvm = ((val >> 20) & 0b1);
+			tw = ((val >> 21) & 0b1);
+			tsr = ((val >> 22) & 0b1); /*uxl= ((val>>32)& 0b11); read only*/
+			//sxl = ((val >> 34) & 0b11);
+			sd = ((val >> 63) & 0b1);
+		}
+	} mstatus; //
 
-  struct ustatus_t {
-    // uint8_t uie, sie, upie, spie, spp, fs, xs, sum, mxr, uxl, sd;
-    uint8_t uie = 0;
-    uint8_t upie = 0;
-    uint8_t fs = 0;
-    uint8_t xs = 0;
-    uint8_t sum = 0;
-    uint8_t mxr = 0;
-    uint8_t uxl = 2;
-    uint8_t sd = 0;
-    ustatus_t()
-    {
-    }
-    uint64_t read_reg() {
-      return (((uint64_t)sd << 63) + ((uint64_t)uxl << 32) + (mxr << 19) + (sum << 18) + (xs << 15) + (fs << 13) + (upie << 4) + uie);
-    }
-    void write_reg(const uint64_t &val) {
-      uie = (val & 0b1);
-      upie = ((val >> 5) & 0b1);
-      fs = ((val >> 13) & 0b11);
-      xs = ((val >> 15) & 0b11);
-      sum = ((val >> 18) & 0b1);
-      mxr = ((val >> 19) & 0b1);
-      uxl = ((val >> 32) & 0b11);
-      sd = ((val >> 63) & 0b1);
-    }
-  } ustatus;
+	struct ustatus_t {
+		// uint8_t uie, sie, upie, spie, spp, fs, xs, sum, mxr, uxl, sd;
+		uint8_t uie = 0;
+		uint8_t upie = 0;
+		uint8_t fs = 0;
+		uint8_t xs = 0;
+		uint8_t sum = 0;
+		uint8_t mxr = 0;
+		uint8_t uxl = 2;
+		uint8_t sd = 0;
+		ustatus_t()
+		{
+		}
+		uint64_t read_reg() {
+			return (((uint64_t)sd << 63) + ((uint64_t)uxl << 32) + (mxr << 19) + (sum << 18) + (xs << 15) + (fs << 13) + (upie << 4) + uie);
+		}
+		void write_reg(const uint64_t &val) {
+			uie = (val & 0b1);
+			upie = ((val >> 5) & 0b1);
+			fs = ((val >> 13) & 0b11);
+			xs = ((val >> 15) & 0b11);
+			sum = ((val >> 18) & 0b1);
+			mxr = ((val >> 19) & 0b1);
+			uxl = ((val >> 32) & 0b11);
+			sd = ((val >> 63) & 0b1);
+		}
+	} ustatus;
 
-  struct mie_t {
-    uint8_t MEIE;
-    uint8_t SEIE;
-    uint8_t UEIE;
-    uint8_t MTIE;
-    uint8_t STIE;
-    uint8_t UTIE;
-    uint8_t MSIE;
-    uint8_t SSIE;
-    uint8_t USIE;
-    mie_t() {
-      MEIE = 0;
-      SEIE = 0;
-      UEIE = 0;
-      MTIE = 0;
-      STIE = 0;
-      UTIE = 0;
-      MSIE = 0;
-      SSIE = 0;
-      USIE = 0;
-    }
-    uint64_t read_reg() {
-      return (((MEIE & 0b1) << 11) + ((SEIE & 0b1) << 9) + ((UEIE & 0b1) << 8) + ((MTIE & 0b1) << 7) + ((STIE & 0b1) << 5) + ((UTIE & 0b1) << 4) + ((MSIE & 0b1) << 3) + ((SSIE & 0b1) << 1) + (USIE & 0b1));
-    }
-    void write_reg(const uint64_t &val) {
-      MEIE = (val >> 11) & 0b1;
-      SEIE = (val >> 9) & 0b1;
-      UEIE = (val >> 8) & 0b1;
-      MTIE = (val >> 7) & 0b1;
-      STIE = (val >> 5) & 0b1;
-      UTIE = (val >> 4) & 0b1;
-      MSIE = (val >> 3) & 0b1;
-      SSIE = (val >> 1) & 0b1;
-      USIE = val & 0b1;
-    }
-  } mie; //
+	struct mie_t {
+		uint8_t MEIE;
+		uint8_t SEIE;
+		uint8_t UEIE;
+		uint8_t MTIE;
+		uint8_t STIE;
+		uint8_t UTIE;
+		uint8_t MSIE;
+		uint8_t SSIE;
+		uint8_t USIE;
+		mie_t() {
+			MEIE = 0;
+			SEIE = 0;
+			UEIE = 0;
+			MTIE = 0;
+			STIE = 0;
+			UTIE = 0;
+			MSIE = 0;
+			SSIE = 0;
+			USIE = 0;
+		}
+		uint64_t read_reg() {
+			return (((MEIE & 0b1) << 11) + ((SEIE & 0b1) << 9) + ((UEIE & 0b1) << 8) + ((MTIE & 0b1) << 7) + ((STIE & 0b1) << 5) + ((UTIE & 0b1) << 4) + ((MSIE & 0b1) << 3) + ((SSIE & 0b1) << 1) + (USIE & 0b1));
+		}
+		void write_reg(const uint64_t &val) {
+			MEIE = (val >> 11) & 0b1;
+			SEIE = (val >> 9) & 0b1;
+			UEIE = (val >> 8) & 0b1;
+			MTIE = (val >> 7) & 0b1;
+			STIE = (val >> 5) & 0b1;
+			UTIE = (val >> 4) & 0b1;
+			MSIE = (val >> 3) & 0b1;
+			SSIE = (val >> 1) & 0b1;
+			USIE = val & 0b1;
+		}
+	} mie; //
 
-  struct mip_t {
-    uint8_t MEIP;
-    uint8_t SEIP;
-    uint8_t UEIP;
-    uint8_t MTIP;
-    uint8_t STIP;
-    uint8_t UTIP;
-    uint8_t MSIP;
-    uint8_t SSIP;
-    uint8_t USIP;
-    mip_t() {
-      MEIP = 0;
-      SEIP = 0;
-      UEIP = 0;
-      MTIP = 0;
-      STIP = 0;
-      UTIP = 0;
-      MSIP = 0;
-      SSIP = 0;
-      USIP = 0;
-    }
-    uint64_t read_reg() {
-      return (((MEIP & 0b1) << 11) + ((SEIP & 0b1) << 9) + ((UEIP & 0b1) << 8) + ((MTIP & 0b1) << 7) + ((STIP & 0b1) << 5) + ((UTIP & 0b1) << 4) + ((MSIP & 0b1) << 3) + ((SSIP & 0b1) << 1) + (USIP & 0b1));
-    }
+	struct mip_t {
+		uint8_t MEIP;
+		uint8_t SEIP;
+		uint8_t UEIP;
+		uint8_t MTIP;
+		uint8_t STIP;
+		uint8_t UTIP;
+		uint8_t MSIP;
+		uint8_t SSIP;
+		uint8_t USIP;
+		mip_t() {
+			MEIP = 0;
+			SEIP = 0;
+			UEIP = 0;
+			MTIP = 0;
+			STIP = 0;
+			UTIP = 0;
+			MSIP = 0;
+			SSIP = 0;
+			USIP = 0;
+		}
+		uint64_t read_reg() {
+			return (((MEIP & 0b1) << 11) + ((SEIP & 0b1) << 9) + ((UEIP & 0b1) << 8) + ((MTIP & 0b1) << 7) + ((STIP & 0b1) << 5) + ((UTIP & 0b1) << 4) + ((MSIP & 0b1) << 3) + ((SSIP & 0b1) << 1) + (USIP & 0b1));
+		}
 
-    void write_reg(const uint64_t &val) {
-      MEIP = (val >> 11) & 0b1;
-      SEIP = (val >> 9) & 0b1;
-      UEIP = (val >> 8) & 0b1;
-      MTIP = (val >> 7) & 0b1;
-      STIP = (val >> 5) & 0b1;
-      UTIP = (val >> 4) & 0b1;
-      MSIP = (val >> 3) & 0b1;
-      SSIP = (val >> 1) & 0b1;
-      USIP = val & 0b1;
-    }
-  } mip; //
+		void write_reg(const uint64_t &val) {
+			MEIP = (val >> 11) & 0b1;
+			SEIP = (val >> 9) & 0b1;
+			UEIP = (val >> 8) & 0b1;
+			MTIP = (val >> 7) & 0b1;
+			STIP = (val >> 5) & 0b1;
+			UTIP = (val >> 4) & 0b1;
+			MSIP = (val >> 3) & 0b1;
+			SSIP = (val >> 1) & 0b1;
+			USIP = val & 0b1;
+		}
+	} mip; //
 
-  struct mtvec_t {
-    uint8_t mode;
-    uint64_t base;
-    mtvec_t() {
-      mode = 0;
-      base = 0;
-    }
-    uint64_t read_reg() {
-      return ((mode & 0b11) + (base & (MASK64 - 0b11)));
-    }
+	struct mtvec_t {
+		uint8_t mode;
+		uint64_t base;
+		mtvec_t() {
+			mode = 0;
+			base = 0;
+		}
+		uint64_t read_reg() {
+			return ((mode & 0b11) + (base & (MASK64 - 0b11)));
+		}
 
-    void write_reg(const uint64_t &val) {
-      mode = val & 0b11;
-      base = (val & (MASK64 - 0b11));
-    }
-  } mtvec; //
+		void write_reg(const uint64_t &val) {
+			mode = val & 0b11;
+			base = (val & (MASK64 - 0b11));
+		}
+	} mtvec; //
 
-  struct utvec_t {
-    uint8_t mode;
-    uint64_t base;
-    utvec_t() {
-      mode = 0;
-      base = 0;
-    }
-    uint64_t read_reg() {
-      return ((mode & 0b11) + (base & (MASK64 - 0b11)));
-    }
-    void write_reg(const uint64_t &val) {
-      mode = val & 0b11;
-      base = (val & (MASK64 - 0b11));
-    }
-  } utvec;
+	struct utvec_t {
+		uint8_t mode;
+		uint64_t base;
+		utvec_t() {
+			mode = 0;
+			base = 0;
+		}
+		uint64_t read_reg() {
+			return ((mode & 0b11) + (base & (MASK64 - 0b11)));
+		}
+		void write_reg(const uint64_t &val) {
+			mode = val & 0b11;
+			base = (val & (MASK64 - 0b11));
+		}
+	} utvec;
 
-  struct mcause_t {
-    uint8_t interrupt;
-    uint64_t ecode;
-    mcause_t() {
-      interrupt = 0;
-      ecode = 0;
-    }
-    uint64_t read_reg() {
-      // cout << "mcause: " << dec << (((1llu<<63)-1) & ecode)+((uint64_t)interrupt<<63);
-      return ((((1llu << 63) - 1) & ecode) + ((uint64_t)interrupt << 63));
-    }
+	struct mcause_t {
+		uint8_t interrupt;
+		uint64_t ecode;
+		mcause_t() {
+			interrupt = 0;
+			ecode = 0;
+		}
+		uint64_t read_reg() {
+			// cout << "mcause: " << dec << (((1llu<<63)-1) & ecode)+((uint64_t)interrupt<<63);
+			return ((((1llu << 63) - 1) & ecode) + ((uint64_t)interrupt << 63));
+		}
 
-    void write_reg(const uint64_t &val) {
-      ecode = val & ((1llu << 63) - 1);
-      interrupt = (val >> 63) & 0b1;
-    }
-  } mcause; //
+		void write_reg(const uint64_t &val) {
+			ecode = val & ((1llu << 63) - 1);
+			interrupt = (val >> 63) & 0b1;
+		}
+	} mcause; //
 
-  struct ucause_t {
-    uint8_t interrupt;
-    uint64_t ecode;
-    ucause_t() {
-      interrupt = 0;
-      ecode = 0;
-    }
-    uint64_t read_reg() {
-      return ((((1llu << 63) - 1) & ecode) + ((uint64_t)interrupt << 63));
-    }
+	struct ucause_t {
+		uint8_t interrupt;
+		uint64_t ecode;
+		ucause_t() {
+			interrupt = 0;
+			ecode = 0;
+		}
+		uint64_t read_reg() {
+			return ((((1llu << 63) - 1) & ecode) + ((uint64_t)interrupt << 63));
+		}
 
-    void write_reg(const uint64_t &val) {
-      ecode = val & ((1llu << 63) - 1);
-      interrupt = (val >> 63) & 0b1;
-    }
-  } ucause;
+		void write_reg(const uint64_t &val) {
+			ecode = val & ((1llu << 63) - 1);
+			interrupt = (val >> 63) & 0b1;
+		}
+	} ucause;
 
-  //* Line 449 FCSR Struct
-  struct fcsr_t {
-    uint8_t frm; 
-    uint8_t nv; 
-    uint8_t dz; 
-    uint8_t of; 
-    uint8_t uf; 
-    uint8_t nx;
-    fcsr_t() {
-     frm = 0;
-      nv = 0;
-      dz = 0;
-      of = 0;
-      uf = 0;
-      nx = 0; 
-    }
+	//* Line 449 FCSR Struct
+	struct fcsr_t {
+		uint8_t frm; 
+		uint8_t nv; 
+		uint8_t dz; 
+		uint8_t of; 
+		uint8_t uf; 
+		uint8_t nx;
+		fcsr_t() {
+		frm = 0;
+			nv = 0;
+			dz = 0;
+			of = 0;
+			uf = 0;
+			nx = 0; 
+		}
 
-    uint64_t read_reg() {
-      return ((( frm & 0b111) << 5)+((nv & 0b1) << 4) + ((dz & 0b1) << 3) + ((of & 0b1) << 2) + ((uf & 0b1) << 1) + (nx & 0b1));
-    }
-	  uint64_t read_frm() {
-      return (frm & 0b111);
-    }
-	  uint64_t read_fflags() {
-      return (((nv & 0b1) << 4) + ((dz & 0b1) << 3) + ((of & 0b1) << 2) + ((uf & 0b1) << 1) + (nx & 0b1));
-    }
+		uint64_t read_reg() {
+			return ((( frm & 0b111) << 5)+((nv & 0b1) << 4) + ((dz & 0b1) << 3) + ((of & 0b1) << 2) + ((uf & 0b1) << 1) + (nx & 0b1));
+		}
+		uint64_t read_frm() {
+			return (frm & 0b111);
+		}
+		uint64_t read_fflags() {
+			return (((nv & 0b1) << 4) + ((dz & 0b1) << 3) + ((of & 0b1) << 2) + ((uf & 0b1) << 1) + (nx & 0b1));
+		}
 
-    void write_reg(const uint64_t &val) {
-      nx = val & 0b1;
-      uf = (val >> 1) & 0b1;
-      of = (val >> 2) & 0b1;
-      dz = (val >> 3) & 0b1;
-      nv = (val >> 4) & 0b1;
-     frm = (val >> 5) & 0b111;
-    }
-	  void write_frm(const uint64_t &val) {
-     frm = val & 0b111;
-    }
-	  void write_fflags(const uint64_t &val) {
-      nx = val & 0b1;
-      uf = (val >> 1) & 0b1;
-      of = (val >> 2) & 0b1;
-      dz = (val >> 3) & 0b1;
-      nv = (val >> 4) & 0b1;
-    }
-  } fcsr;
+		void write_reg(const uint64_t &val) {
+			nx = val & 0b1;
+			uf = (val >> 1) & 0b1;
+			of = (val >> 2) & 0b1;
+			dz = (val >> 3) & 0b1;
+			nv = (val >> 4) & 0b1;
+		frm = (val >> 5) & 0b111;
+		}
+		void write_frm(const uint64_t &val) {
+		frm = val & 0b111;
+		}
+		void write_fflags(const uint64_t &val) {
+			nx = val & 0b1;
+			uf = (val >> 1) & 0b1;
+			of = (val >> 2) & 0b1;
+			dz = (val >> 3) & 0b1;
+			nv = (val >> 4) & 0b1;
+		}
+	} fcsr;
 
-  uint64_t &mtime = memory.at(MTIME_ADDR / 8);
-  uint64_t &mtimecmp = memory.at(MTIMECMP_ADDR / 8);
+	uint64_t &mtime = memory.at(MTIME_ADDR / 8);
+	uint64_t &mtimecmp = memory.at(MTIMECMP_ADDR / 8);
 
-  struct timeval tv;
-  uint64_t time_in_micros;
+	struct timeval tv;
+	uint64_t time_in_micros;
 
-  uint64_t csr_read(const uint64_t &csr_addr) {
-    csr_read_success = true;
-    switch (csr_addr) {
-    case MSTATUS:
-      if (cp == MMODE) {
-        csr_read_success = true;
-        return mstatus.read_reg();
-      } else {
-        csr_read_success = false;
-        return 1;
-      }
-    case SATP: return satp.read_reg();
-    case MIE: return mie.read_reg();
-    case MIP: return mip.read_reg();
-    case MTVEC: return mtvec.read_reg();
-    //*Adding FCSR
-    case FCSR: return fcsr.read_reg();
-	  case FRM: return fcsr.read_frm();
-	  case FFLAGS: return fcsr.read_fflags();
-    case MEPC: return mepc;
-    case MCAUSE: return mcause.read_reg();
-    case MTVAL: return mtval;
-    case PMPCFG0: return pmpcfg0;
-    case PMPADDR0: return pmpaddr0;
-    case MHARTID: return mhartid;
-    case MVENDORID: return mvendorid; break;
-    case MARCHID: return marchid; break;
-    case MIMPID: return mimpid; break;
-    case MSCRATCH: return mscratch;
-    case MISA: return misa;
-    case SCOUNTEREN: return scounteren;
-    case MCOUNTEREN: return mcounteren;
-    default:
-      csr_read_success = false;
-      return 1;
-    }
-  }
+	uint64_t csr_read(const uint64_t &csr_addr) {
+		csr_read_success = true;
+		switch (csr_addr) {
+		case MSTATUS:
+			if (cp == MMODE) {
+				csr_read_success = true;
+				return mstatus.read_reg();
+			} else {
+				csr_read_success = false;
+				return 1;
+			}
+		case SATP: return satp.read_reg();
+		case MIE: return mie.read_reg();
+		case MIP: return mip.read_reg();
+		case MTVEC: return mtvec.read_reg();
+		//*Adding FCSR
+		case FCSR: return fcsr.read_reg();
+		case FRM: return fcsr.read_frm();
+		case FFLAGS: return fcsr.read_fflags();
+		case MEPC: return mepc;
+		case MCAUSE: return mcause.read_reg();
+		case MTVAL: return mtval;
+		case PMPCFG0: return pmpcfg0;
+		case PMPADDR0: return pmpaddr0;
+		case MHARTID: return mhartid;
+		case MVENDORID: return mvendorid; break;
+		case MARCHID: return marchid; break;
+		case MIMPID: return mimpid; break;
+		case MSCRATCH: return mscratch;
+		case MISA: return misa;
+		case SCOUNTEREN: return scounteren;
+		case MCOUNTEREN: return mcounteren;
+		default:
+			csr_read_success = false;
+			return 1;
+		}
+	}
 
-  bool csr_write(const uint64_t &csr_addr, const uint64_t &val) {
-    switch (csr_addr) {
-    case MSTATUS: mstatus.write_reg(val); return true;
-    case SATP: satp.write_reg(val); return true;
-    case MIE: mie.write_reg(val); return true;
-    case MIP: mip.write_reg(val); return true;
-    case MTVEC: mtvec.write_reg(val); return true;
-    case FCSR: fcsr.write_reg(val); return true;
-	  case FRM: fcsr.write_frm(val); return true;
-	  case FFLAGS: fcsr.write_fflags(val); return true;	
-    case MEPC: mepc = val; return true;
-    case MCAUSE: mcause.write_reg(val); return true;
-    case MTVAL: mtval = val; return true;
-    case PMPCFG0: pmpcfg0 = val; return true;
-    case PMPADDR0: pmpaddr0 = val; return true;
-    case MHARTID: mhartid = val; return true;
-    case MVENDORID: mvendorid = val; return true;
-    case MARCHID: marchid = val; return true;
-    case MIMPID: mimpid = val; return true;
-    case MSCRATCH: mscratch = val; return true;
-    case MISA: misa = val; return true;
-    case SCOUNTEREN: scounteren = val; return true;
-    case MCOUNTEREN: mcounteren = val; return true;
-    default: return false;
-    }
-  }
+	bool csr_write(const uint64_t &csr_addr, const uint64_t &val) {
+		switch (csr_addr) {
+		case MSTATUS: mstatus.write_reg(val); return true;
+		case SATP: satp.write_reg(val); return true;
+		case MIE: mie.write_reg(val); return true;
+		case MIP: mip.write_reg(val); return true;
+		case MTVEC: mtvec.write_reg(val); return true;
+		case FCSR: fcsr.write_reg(val); return true;
+		case FRM: fcsr.write_frm(val); return true;
+		case FFLAGS: fcsr.write_fflags(val); return true;	
+		case MEPC: mepc = val; return true;
+		case MCAUSE: mcause.write_reg(val); return true;
+		case MTVAL: mtval = val; return true;
+		case PMPCFG0: pmpcfg0 = val; return true;
+		case PMPADDR0: pmpaddr0 = val; return true;
+		case MHARTID: mhartid = val; return true;
+		case MVENDORID: mvendorid = val; return true;
+		case MARCHID: marchid = val; return true;
+		case MIMPID: mimpid = val; return true;
+		case MSCRATCH: mscratch = val; return true;
+		case MISA: misa = val; return true;
+		case SCOUNTEREN: scounteren = val; return true;
+		case MCOUNTEREN: mcounteren = val; return true;
+		default: return false;
+		}
+	}
 
-  uint64_t excep_function(const uint64_t &PC, const uint64_t &mecode, const uint64_t &secode, const uint64_t &uecode, const plevel_t &current_privilage) {
-    uint64_t ecode = 0;
-    uint64_t new_PC = 0;
+	uint64_t excep_function(const uint64_t &PC, const uint64_t &mecode, const uint64_t &secode, const uint64_t &uecode, const plevel_t &current_privilage) {
+		uint64_t ecode = 0;
+		uint64_t new_PC = 0;
 
-    if (current_privilage == UMODE) {
-      ecode = uecode;
-    } else if (current_privilage == MMODE) {
-      ecode = mecode;
-    }
+		if (current_privilage == UMODE) {
+			ecode = uecode;
+		} else if (current_privilage == MMODE) {
+			ecode = mecode;
+		}
 
-    mstatus.mpp = (uint64_t)cp;
-    cp = MMODE;
-    mstatus.mpie = mstatus.mie;
-    mstatus.mie = 0;
-    mcause.interrupt = 0;
-    mcause.ecode = ecode;
-    mepc = PC - 4;
-    new_PC = mtvec.base;
+		mstatus.mpp = (uint64_t)cp;
+		cp = MMODE;
+		mstatus.mpie = mstatus.mie;
+		mstatus.mie = 0;
+		mcause.interrupt = 0;
+		mcause.ecode = ecode;
+		mepc = PC - 4;
+		new_PC = mtvec.base;
 
-    return new_PC;
-  }
+		return new_PC;
+	}
 
-  uint64_t interrupt_function(const uint64_t &PC, const uint64_t &mecode, const plevel_t &current_privilage) {
-    uint64_t ecode = 0;
-    uint64_t new_PC = 0;
+	uint64_t interrupt_function(const uint64_t &PC, const uint64_t &mecode, const plevel_t &current_privilage) {
+		uint64_t ecode = 0;
+		uint64_t new_PC = 0;
 
-    ecode = mecode;
+		ecode = mecode;
 
-    if (mstatus.mie == 1) {
-      mstatus.mpp = (uint64_t)cp;
-      cp = MMODE;
-      mstatus.mpie = mstatus.mie;
-      mstatus.mie = 0;
-      mcause.interrupt = 1;
-      mcause.ecode = ecode;
-      mepc = PC;
+		if (mstatus.mie == 1) {
+			mstatus.mpp = (uint64_t)cp;
+			cp = MMODE;
+			mstatus.mpie = mstatus.mie;
+			mstatus.mie = 0;
+			mcause.interrupt = 1;
+			mcause.ecode = ecode;
+			mepc = PC;
 
-      if (mtvec.mode == 0b0) {
-        new_PC = mtvec.base;
-      }
-      else if (mtvec.mode == 0b1) {
-        new_PC = mtvec.base + 4 * ecode;
-      }
-    } else {
-      // cout << "Unrecognized mode for interrupt_function" << endl;
-      return PC;
-    }
-    return new_PC;
-  }
+			if (mtvec.mode == 0b0) {
+				new_PC = mtvec.base;
+			}
+			else if (mtvec.mode == 0b1) {
+				new_PC = mtvec.base + 4 * ecode;
+			}
+		} else {
+			// cout << "Unrecognized mode for interrupt_function" << endl;
+			return PC;
+		}
+		return new_PC;
+	}
 
 	uint64_t getINST(const uint64_t &PC, const vector<uint64_t> *memory) {
 		// cout << "This is here" << endl;
