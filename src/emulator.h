@@ -751,73 +751,19 @@ private:
       return y;
   }
 
-  //*Line 655
-  int number_class(float num_check){
-    //Getting bit representations for mantissa and exponent
-    int const num_check_size = sizeof(num_check)*8;
-    bitset<num_check_size> num_check_b = bitset<num_check_size>(*reinterpret_cast<uint64_t*>(&num_check));
-    bitset<num_check_size> mantissa_b_mask = 0b11111111111111111111111;
-    bitset<num_check_size> mantissa_b = num_check_b & mantissa_b_mask;
-    bitset<num_check_size> exponent_b_mask = 0b11111111;
-    bitset<num_check_size> exponent_b = (num_check_b >> 23) & exponent_b_mask;
-
-    // TODO rewrite these conditions with bitset operations - cleanup
-    bool isPositiveInf = std::isinf(num_check) && !std::signbit(num_check);
-    bool isNegativeInf = std::isinf(num_check) && std::signbit(num_check);
-    bool isPositiveZero = std::fpclassify(num_check) == FP_ZERO && !std::signbit(num_check);
-    bool isNegativeZero = std::fpclassify(num_check) == FP_ZERO && std::signbit(num_check);
-    //? Subnormal check didn't work as expected
-    bool isPositiveSubnormal = std::fpclassify(num_check) == FP_SUBNORMAL && std::signbit(num_check);
-    bool isNegativeSubnormal = std::fpclassify(num_check) == FP_SUBNORMAL && std::signbit(num_check);
-    if (std::signbit(num_check)) { //Checking for negative numbers
-      if (std::isnan(num_check)) {
-        if (mantissa_b[22] == 0) {
-            //Signalling NaN
-            //In range FF800001 and FFBFFFFF
-            return 8;
-        } else {
-          //Quiet NaN
-          //In range  FFC00000 and FFFFFFFF
-            return 9;
-        }
-      } else if (isNegativeInf) {  //Sign bit is 1
-        return 0;
-      } else if (isNegativeZero) {
-        return 3;
-      } else if (exponent_b.none()) {
-        // isNegativeSubnormal, in this order
-        return 2;
-      } else {
-        //A negative normal number
-        return 1;
-      }
-    } else {  //Sign bit is zero
-      //First check for NaN
-      //std::bitset<32> bits(num_check);
-      if (std::isnan(num_check)) {
-        if (mantissa_b[22] == 0) {
-            //Signalling NaN
-            //In range 7F800001 and 7FBFFFFF 
-            return 8;
-        } else {
-          //Quiet NaN
-          //In range  7FC00000 and 7FFFFFFF 
-            return 9;
-        }
-      } else if (isPositiveInf) {
-        return 7;
-      } else if (isPositiveZero) {
-        return 4;
-      } else if (exponent_b.none()) {
-        // isPositiveSubnormal, in this order
-        return 5;
-      } else {
-        //A positive normal number
-        return 6;
-      }
-    }
-    return -1;
-  }
+	//*Line 655
+	int number_class(float num_check){
+		uint8_t result;
+		// we will account for sign later
+		switch (FLOAT_TO_32BITS(num_check) & 0x7fc00000) {
+		case 0x00000000: result = (FLOAT_TO_32BITS(num_check) & 0x003fffff) ? 2 : 3; break;
+		case 0x00400000: result = 2; break;
+		case 0x7f800000: if (FLOAT_TO_32BITS(num_check) & 0x003fffff) { return 8; }; result = 0; break;
+		case 0x7fc00000: return 9;
+		default: result = 1;
+		}
+		return (FLOAT_TO_32BITS(num_check) & 0x80000000) ? result : ((~result)&7);
+	}
 
 	template <class T>
 	T sign_extend(const T &x, const int &bits) {
