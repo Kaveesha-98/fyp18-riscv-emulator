@@ -10,25 +10,25 @@ emulator emu;
 
 // Define the function to be called when ctrl-c (SIGINT) is sent to process
 void signal_callback_handler(int signum) {
-  disable_raw_mode();
-  tcflush(0, TCIFLUSH); 
-  // Terminate program
-  exit(signum);
+	disable_raw_mode();
+	tcflush(0, TCIFLUSH); 
+	// Terminate program
+	exit(signum);
 }
 
 int main(int argc, char* argv[]) {
-  // initaite registers and memory
-  emu.init(argv[1]);
+	// initaite registers and memory
+	emu.init(argv[1]);
 
-  enable_raw_mode();
-  while (1) {
-    // steps through one architectural change of pc
-    emu.step();
+	enable_raw_mode();
+	while (1) {
+		// steps through one architectural change of pc
+		emu.step();
 
-    // sets up interrupts to move to exception handler
-    // in next step()
-    emu.set_interrupts();
-  }
-  disable_raw_mode();
-  return 0;
+		// sets up interrupts to move to exception handler
+		// in next step()
+		emu.set_interrupts();
+	}
+	disable_raw_mode();
+	return 0;
 }

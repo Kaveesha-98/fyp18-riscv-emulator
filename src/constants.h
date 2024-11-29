@@ -43,37 +43,37 @@ std::string freg_file_names[32] = {"ft0","ft1","ft2","ft3","ft4","ft5","ft6","ft
 
 // type defs
 enum opcode_t {
-                lui    = 0b0110111,
-                auipc  = 0b0010111,
-                jump   = 0b1101111,
-                jumpr  = 0b1100111,
-                cjump  = 0b1100011,
-                load   = 0b0000011,
-                store  = 0b0100011,
-                iops   = 0b0010011,
-                iops64 = 0b0011011,
-                rops   = 0b0110011,
-                rops64 = 0b0111011,
-                amo    = 0b0101111,
-                fence  = 0b0001111,
-                systm  = 0b1110011,
+	lui    = 0b0110111,
+	auipc  = 0b0010111,
+	jump   = 0b1101111,
+	jumpr  = 0b1100111,
+	cjump  = 0b1100011,
+	load   = 0b0000011,
+	store  = 0b0100011,
+	iops   = 0b0010011,
+	iops64 = 0b0011011,
+	rops   = 0b0110011,
+	rops64 = 0b0111011,
+	amo    = 0b0101111,
+	fence  = 0b0001111,
+	systm  = 0b1110011,
 
-                //*Line 43 Define new instruction opcodes
-                fload  = 0b0000111,																						//
-				fstore = 0b0100111,																						//
-				fmadd  = 0b1000011,																						//
-				fmsub  = 0b1000111,																						// for all S,D and Q
-				fnmsub = 0b1001011,																						//
-				fnmadd = 0b1001111,																						//
-				fcomp  = 0b1010011,				//add,sub,mul,div,sqrt,sgnj,sgnjn,sgnjx,min,max,cvt,mv,eq,lt,le,class	//
+	//*Line 43 Define new instruction opcodes
+	fload  = 0b0000111,																						//
+	fstore = 0b0100111,																						//
+	fmadd  = 0b1000011,																						//
+	fmsub  = 0b1000111,																						// for all S,D and Q
+	fnmsub = 0b1001011,																						//
+	fnmadd = 0b1001111,																						//
+	fcomp  = 0b1010011,				//add,sub,mul,div,sqrt,sgnj,sgnjn,sgnjx,min,max,cvt,mv,eq,lt,le,class	//
 
-            };
+};
 
 enum plevel_t {
-    MMODE = 0b11,
-    HMODE = 0b10,
-    SMODE = 0b01,
-    UMODE = 0b00
+	MMODE = 0b11,
+	HMODE = 0b10,
+	SMODE = 0b01,
+	UMODE = 0b00
 };
 
 #define USTATUS			0x000
