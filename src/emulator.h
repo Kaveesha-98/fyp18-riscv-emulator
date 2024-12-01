@@ -635,16 +635,6 @@ private:
 		case 0xff800000: return (FLOAT_TO_32BITS(num_check)&0x007fffff) ? ((FLOAT_TO_32BITS(num_check)&0x00400000)?9:8) : 0;
 		default: return (FLOAT_TO_32BITS(num_check)&0x80000000) ? 1 : 6;	
 		}
-		/*uint8_t result;
-		// we will account for sign later
-		switch (FLOAT_TO_32BITS(num_check) & 0x7fc00000) {
-		case 0x00000000: result = (FLOAT_TO_32BITS(num_check) & 0x003fffff) ? 2 : 3; break;
-		case 0x00400000: result = 2; break;
-		case 0x7f800000: if (FLOAT_TO_32BITS(num_check) & 0x003fffff) { return 8; }; result = 0; break;
-		case 0x7fc00000: return 9;
-		default: result = 1;
-		}
-		return (FLOAT_TO_32BITS(num_check) & 0x80000000) ? result : ((~result)&7);*/
 	}
 
 	template <class T>
