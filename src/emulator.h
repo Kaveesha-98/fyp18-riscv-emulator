@@ -34,6 +34,10 @@
 
 using namespace std;
 
+#ifndef MISA_SPEC
+	#define MISA_SPEC (0b100000001000100100001 | (0b1llu << 63))
+#endif
+
 // disables echo for terminal
 void enable_raw_mode() {
 	termios term;
@@ -175,7 +179,7 @@ private:
 	uint64_t instruction;
 
 	//* Line 155 Change MISA to incorporate floating point.
-	uint64_t misa = 0b100000001000100100001 | (0b1llu << 63);     
+	uint64_t misa = MISA_SPEC;     
 	uint64_t mscratch = 0;
 	uint64_t medeleg = 0;
 	uint64_t mideleg = 0;
