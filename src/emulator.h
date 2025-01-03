@@ -23,6 +23,13 @@
 #include <cmath>
 #include <bitset>
 #include <fenv.h>
+#include <iomanip>
+
+#ifdef EMULATOR_LOGGING
+	#define DEBUG_LOG(t, v) logfile << "[DEBUG]: " << t << " 0x" << setfill('0') << setw(16) << hex << v << endl;
+#else 
+	#define DEBUG_LOG(t, v)
+#endif
 
 #include "constants.h"
 
@@ -113,6 +120,7 @@ private:
 	static_assert(std::numeric_limits<double>::is_iec559,
 									"This code requires IEEE-754 doubles");
 
+	std::ofstream logfile;
 	string line;
 	uint64_t temp;
 	uint64_t i = 0;
@@ -486,8 +494,8 @@ private:
 		}
 	} fcsr;
 
-	uint64_t &mtime = memory.at(MTIME_ADDR / 8);
-	uint64_t &mtimecmp = memory.at(MTIMECMP_ADDR / 8);
+	uint64_t mtime; // = memory.at(MTIME_ADDR / 8);
+	uint64_t mtimecmp; // = memory.at(MTIMECMP_ADDR / 8);
 
 	struct timeval tv;
 	uint64_t time_in_micros;
@@ -908,7 +916,19 @@ private:
 	}
 
 public:
-	uint64_t get_mstatus() { return mstatus.read_reg(); }
+	struct emulator_state
+	{
+		uint64_t pc;
+		uint64_t gpr[32];
+		uint32_t instruction;
+	};
+	
+	struct emulator_state before_step_state;
+
+	uint64_t get_mstatus() {
+		DEBUG_LOG("Fethcing mstatus for cross checking", mstatus.read_reg()); 
+		return mstatus.read_reg(); 
+	}
 
 	vector<uint64_t> reg_file = vector<uint64_t>(32);          // register file
 	//*Line 1021: Add F registers
@@ -938,13 +958,17 @@ public:
 		freg_file[24], freg_file[25], freg_file[26], freg_file[27], freg_file[28], freg_file[29], freg_file[30], freg_file[31]);
 	}
 
-	__uint64_t get_pc() { return PC; }
+	__uint64_t get_pc() {
+		DEBUG_LOG("fetching PC for cross checking:", PC); 
+		return PC; 
+	}
 
 	__uint64_t fetch_long(__uint64_t offset) { return memory.at(offset / 8); }
 
 	int is_peripheral_read() {
 		__uint32_t instruction = fetch_instruction(PC);
-		__uint64_t load_addr = reg_file[(instruction >> 15) & 0x1f] + (((__uint64_t)((__int32_t) instruction)) >> 20);
+		__uint64_t load_addr = reg_file[(instruction >> 15) & 0x1f] + ( (__uint64_t)( (__int64_t)((__int32_t) instruction) >> 20 ) );/* (((__uint64_t)((__int32_t) instruction)) >> 20) */;
+		DEBUG_LOG("@ is_peripheral_read() load_addr", load_addr);
 		if ((instruction & 0x7f) != 0b0000011) { return 0; } 
 		if ((load_addr >= DRAM_BASE) && (load_addr <= (DRAM_BASE + 0x9000000))) { return 0; } else { return 1; }
 	}
@@ -959,7 +983,11 @@ public:
 	}
 
 	void set_register_with_value(__uint8_t rd,__uint64_t value) {
+		DEBUG_LOG("@ set_register_with_value    rd:", ((uint64_t) rd));
+		DEBUG_LOG("@ set_register_with_value value:", value);
+		DEBUG_LOG("@ set_register_with_value   x15:", reg_file[15]);
 		reg_file[rd] = value;
+		DEBUG_LOG("@ set_register_with_value   x15:", reg_file[15]);
 	}
 
 	/**
@@ -972,6 +1000,10 @@ public:
 	 * return 0 - to signal an error
 	 */
 	int init(string image_name) {
+#ifdef EMULATOR_LOGGING
+		logfile.open("emulator.log");
+#endif
+
 		ifstream infile(image_name, ios::binary);
 		printf("stepping\n");
 		if (!infile.good()) {
@@ -1089,6 +1121,16 @@ public:
 	// this sets up timer interrupt
 	// returns a positive integer [error code] if its not possible to set up interrupt
 	int set_interrupts(__uint64_t peripheral_read = 1, __uint64_t mepc = 0) {
+
+#ifdef EMULATOR_LOGGING
+		if (!logfile.is_open()) {
+			std::cerr << "No log file opened!, undefine EMULATOR_LOGGING if logging not required" << std::endl;
+			exit(0);
+		}
+
+		logfile << "set_interrupts(): " << std::endl; 
+
+#endif
 		// emulator-simulator state semantic mis matches
 		// look at the pc definitions when comparing state
 		// step();
@@ -1111,6 +1153,7 @@ public:
 		if (!mie.MTIE || !mstatus.mie) { return 1; }
 
 		PC = interrupt_function(PC, CAUSE_MACHINE_TIMER_INT, cp);
+		DEBUG_LOG("x15 at set_interrupts():", reg_file[15]);
 		return 0;
 	}
 
@@ -1147,7 +1190,26 @@ public:
 		//   exit(1);
 		// }
 		//--------------Debugging---------------------
+#ifdef EMULATOR_LOGGING
+		if (!logfile.is_open()) {
+			std::cerr << "No log file opened!, undefine EMULATOR_LOGGING if logging not required" << std::endl;
+			exit(0);
+		}
 
+		logfile << "step(): ";
+		logfile << "0x" << setfill('0') << setw(16) << hex << PC << " " /*log pc*/
+			<< "0x" << setfill('0') << setw(8) << hex << instruction << " " /*log instruction to be executed*/
+			<< "0x" << setfill('0') << setw(16) << hex << memory.at((0x12004000 - DRAM_BASE) / 8) << " " /*log instruction to be executed*/
+			<< "0x" << setfill('0') << setw(16) << hex << reg_file[10] << std::endl; /*log instruction to be executed*/
+
+#endif
+		// record state of emulator before executing step
+		/* before_step_state.instruction = instruction;
+		before_step_state.pc = PC;
+		for (int32_t gpr_i = 0; gpr_i < 32; gpr_i++) {
+			before_step_state.gpr[gpr_i] = reg_file[gpr_i];
+		}
+		uint64_t before_step_probe = memory.at((0x12004000 - DRAM_BASE) / 8); */
 		if (!INS_ADDR_MISSALIG) {
 
 			// show_state();
@@ -1217,9 +1279,12 @@ public:
 				} else {
 					if (((load_addr >= DRAM_BASE) && (load_addr <= (DRAM_BASE + 0x9000000)))) {
 						load_data = memory.at((load_addr - DRAM_BASE) / 8);
+						DEBUG_LOG("load_addr", load_addr); DEBUG_LOG("load_data", load_data);
 						// right justification and sign extension
 						wb_data = (static_cast<int64_t>(load_data << ((64-((load_addr&7)<<3)) - (1 << (3 + (func3&3)))))) >> (64 - (1 << (3 + (func3&3))));
+						DEBUG_LOG("wb_data", wb_data);
 						wb_data = (func3&4) ? (wb_data & (0xfffffffffffffffflu >> (64 - (1 << (3 + (func3&3)))))) : wb_data;
+						DEBUG_LOG("wb_data", wb_data);
 						if ((load_addr & ((1 << (func3&3)) - 1))) { LD_ADDR_MISSALIG = true; } else { reg_file[rd] = wb_data; }
 					} else {
 						if ((load_addr >= CLINT_BASE) && (load_addr <= CLINT_BASE + CLINT_SIZE)) {
@@ -1250,11 +1315,17 @@ public:
 			case store:
 				store_addr = (reg_file[rs1] + sign_extend<uint64_t>(imm_s, 12)) & 0x00000000ffffffff; // address generation
 				if ((store_addr >= DRAM_BASE) & (store_addr < (DRAM_BASE + 0x9000000))) { // main memory
+					DEBUG_LOG("store_addr: ", store_addr);
 					store_data = memory.at((store_addr - DRAM_BASE) / 8); // get original data
+					DEBUG_LOG("original_data", store_data);
 					wb_data = store_data & ~((0xfffffffffffffffflu >> (64 - (1 << (3 + (func3&3))))) << ((store_addr&7) << 3)); // make space for new data to be written
+					DEBUG_LOG("after clearing out original data: ", wb_data);
 					val = (reg_file[rs2] & (0xfffffffffffffffflu >> (64 - (1 << (3 + (func3&3)))))) << ((store_addr&7) << 3); // byte aligning write data
+					DEBUG_LOG("After byte aligning data: ", val);
 					wb_data |= val; // overwriting original data
+					DEBUG_LOG("After modifying double, before writing: ", wb_data);
 					ls_success = ((store_addr & ((1 << (func3&3)) - 1)) == 0); // looking for misalignment 
+					DEBUG_LOG("ls_success: ", ls_success);
 					if (!ls_success) { 
 						PC = excep_function(PC, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, CAUSE_MISALIGNED_STORE, cp);
 					} else {
@@ -1524,7 +1595,9 @@ public:
 					}
 					break;
 				default:
+					DEBUG_LOG("Before xecuting CSR read x15, at this time this:", reg_file[15]);
 					csr_data = csr_read(imm11_0);
+					DEBUG_LOG("Executing CSR read x15, after this:", reg_file[15]);
 					if (csr_read_success) {
 						store_data =  func3&4 ? rs1 : reg_file[rs1];
 						switch (func3 & 3) {
@@ -1533,11 +1606,13 @@ public:
 						case 0b11: csr_bool = csr_write(imm11_0, ((~store_data) & csr_data)); break; // CSRRC*
 						default: break; // illegal instruction
 						}
+						DEBUG_LOG("Executing CSR write, x15 after this:", reg_file[15]);
 						if (!csr_bool) {
 							mtval = instruction;
 							ILL_INS = true;
 						} else if (rd != 0) {
 							reg_file[rd] = csr_data;
+							DEBUG_LOG("Writing CSR value to gprs, x15 after this:", reg_file[15]);
 						}
 					} else {
 						mtval = instruction;
@@ -1766,5 +1841,43 @@ public:
 					break;
 			}
 		}
+		DEBUG_LOG("x10 after executing instruction:", reg_file[10]);
+		// get state of probe after step
+		/* uint64_t probe_after_step = memory.at((0x12004000 - DRAM_BASE) / 8);
+		if (probe_after_step != before_step_probe) {
+			printf ("Noticed change in proble location at pc: 0x%016lx instruction: 0x%08lx\n", before_step_state.pc, before_step_state.instruction);
+			printf ("Value at probe before: 0x%016lx and after: 0x%016lx \n", before_step_probe, probe_after_step);
+			printf ("State of gprs\n");
+			printf ("\t x00: %016lx x01: %016lx x02: %016lx x03: %016lx x04: %016lx x05: %016lx x06: %016lx x07: %016lx \n",
+				before_step_state.gpr[0], before_step_state.gpr[1], before_step_state.gpr[2], before_step_state.gpr[3], 
+				before_step_state.gpr[4], before_step_state.gpr[5], before_step_state.gpr[6], before_step_state.gpr[7]);
+			printf ("\t x08: %016lx x09: %016lx x10: %016lx x11: %016lx x12: %016lx x13: %016lx x14: %016lx x15: %016lx \n",
+				before_step_state.gpr[8], before_step_state.gpr[9], before_step_state.gpr[10], before_step_state.gpr[11], 
+				before_step_state.gpr[12], before_step_state.gpr[13], before_step_state.gpr[14], before_step_state.gpr[15]);
+			printf ("\t x16: %016lx x17: %016lx x18: %016lx x19: %016lx x20: %016lx x21: %016lx x22: %016lx x23: %016lx \n",
+				before_step_state.gpr[16], before_step_state.gpr[17], before_step_state.gpr[18], before_step_state.gpr[19], 
+				before_step_state.gpr[20], before_step_state.gpr[21], before_step_state.gpr[22], before_step_state.gpr[23]);
+			printf ("\t x24: %016lx x25: %016lx x26: %016lx x27: %016lx x28: %016lx x29: %016lx x30: %016lx x31: %016lx \n",
+				before_step_state.gpr[24], before_step_state.gpr[25], before_step_state.gpr[26], before_step_state.gpr[27], 
+				before_step_state.gpr[28], before_step_state.gpr[29], before_step_state.gpr[30], before_step_state.gpr[31]);
+			printf ("What to do now c: continue with cosimulation b: break and exit program: ");
+			uint8_t keep_looping = 1;
+			while (keep_looping) {
+				switch (getchar()) {
+				case 'c':
+					printf ("\nContinuing cosimulation\n");
+					keep_looping = 0;
+					break;
+
+				case 'b': 
+					printf ("Exiting program.... ");
+					exit(0);
+				
+				default:
+					printf ("\nInvalid input try again: ");
+					break;
+				}
+			}
+		} */
 	}
 };
